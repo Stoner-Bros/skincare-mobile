@@ -10,6 +10,7 @@ import {
   SectionList,
   Pressable,
 } from "react-native";
+import { Icon, MD3Colors } from "react-native-paper";
 
 const App = () => {
   const sectionsData = [
@@ -116,26 +117,41 @@ const App = () => {
         <Text className="font-bold text-xl">Hello, I am your cat!</Text>
         <Cats name="Meow" />
         <Cats name="Meows" />
-        <Link href={"/login"} asChild>
-          <Pressable>
-            <Text>Login</Text>
-          </Pressable>
+
+        <Link
+          href={"/login"}
+          className="bg-violet-600 h-[40px] w-[120px] border-0 rounded-xl flex justify-center items-center"
+        >
+          <View className="h-full w-full flex justify-center items-center">
+            <Text className="text-white text-2xl font-bold">Login</Text>
+          </View>
         </Link>
       </View>
+      <Icon source="camera" color={MD3Colors.error50} size={50} />
+
       <View className="p-2">
+        <View className="bg-orange-500 flex justify-center items-center h-20">
+          <Text className=" text-3xl font-bold">Little lemon</Text>
+        </View>
         <SectionList
           sections={sectionsData}
           keyExtractor={(item, index) => item.name + index}
           nestedScrollEnabled
           renderItem={({ item }) => (
-            <View className="flex-grow justify-between">
-              <Text className="text-left">{item.name}</Text>
-              <Text className="text-right">{item.price}</Text>
+            <View className="flex-row justify-between bg-black/80 items-center">
+              <Text className="mt-10 mb-10 ml-10 text-yellow-500 text-xl">
+                {item.name}
+              </Text>
+              <Text className="mt-10 mb-10 mr-10 text-yellow-500 text-xl">
+                ${item.price}
+              </Text>
             </View>
           )}
           renderSectionHeader={({ section: { title } }) => (
-            <View className="bg-red-500 ">
-              <Text className="text-neutral-50 text-center">{title}</Text>
+            <View className="bg-yellow-500 h-[50px] flex justify-center ">
+              <Text className="text-black text-center font-bold text-2xl">
+                {title}
+              </Text>
             </View>
           )}
           ItemSeparatorComponent={() => <View />}

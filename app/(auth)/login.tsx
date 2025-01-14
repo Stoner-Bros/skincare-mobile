@@ -16,6 +16,7 @@ import { Link, useRouter } from "expo-router";
 const Login = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  // const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
@@ -29,6 +30,16 @@ const Login = () => {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <View className="">
+        <Link
+          href={"/"}
+          className="h-[40px] w-[120px] bg-blue-600 border-0 rounded-2xl text-white flex justify-center items-center"
+        >
+          <View className=" flex justify-center items-center h-full w-full">
+            <Text className="text-white text-xl font-bold"> Go Back </Text>
+          </View>
+        </Link>
+      </View>
       <View style={styles.container}>
         <Text style={styles.title}>Đăng Nhập</Text>
         <TextInput
@@ -48,9 +59,9 @@ const Login = () => {
         <Button title="Đăng Nhập" onPress={handleLogin} />
         <View style={styles.linkContainer}>
           <Text>Bạn chưa có tài khoản?</Text>
-          {/* <Link href="/signup" style={styles.link}>
+          <Link href="/register" style={styles.link}>
             Đăng ký
-          </Link> */}
+          </Link>
         </View>
       </View>
     </GestureHandlerRootView>
