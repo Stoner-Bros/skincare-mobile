@@ -14,6 +14,7 @@ import "react-native-reanimated";
 
 import { PaperProvider } from "react-native-paper"; // Import PaperProvider
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -37,14 +38,18 @@ export default function RootLayout() {
     colorScheme === "dark" ? PaperDefaultTheme : PaperDefaultTheme;
 
   return (
-    <PaperProvider theme={paperTheme}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </ThemeProvider>
-    </PaperProvider>
+    <GestureHandlerRootView>
+      <PaperProvider theme={paperTheme}>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+        >
+          <Stack>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+        </ThemeProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }
