@@ -97,7 +97,7 @@ export default function DateTimeSelection() {
 
         // Chuyển đến trang xác nhận với thông tin đã chọn
         router.push({
-          pathname: "/booking/confirm",
+          pathname: "/(booking-flow)/confirm",
           params: {
             date: selectedDate.toISOString(),
             time: selectedTime,

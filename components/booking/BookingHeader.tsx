@@ -12,7 +12,7 @@ export default function BookingHeader() {
         <Ionicons name="arrow-back" size={24} color="#000" />
       </TouchableOpacity>
       <Text style={styles.title}>My Bookings</Text>
-      <TouchableOpacity onPress={() => router.push("/booking/new")}>
+      <TouchableOpacity onPress={() => router.push("/(booking-flow)/new")}>
         <Ionicons name="add-circle-outline" size={24} color="#2ecc71" />
       </TouchableOpacity>
     </View>

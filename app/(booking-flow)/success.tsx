@@ -5,9 +5,33 @@ import { useFocusEffect, usePathname, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LottieView from "lottie-react-native";
 import { ScrollView } from "react-native-gesture-handler";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function BookingSuccess() {
   const router = useRouter();
+  // Xóa dữ liệu booking tạm thời
+  useEffect(() => {
+    const clearTempData = async () => {
+      try {
+        await AsyncStorage.removeItem("selectedSpecialist");
+        await AsyncStorage.removeItem("selectedDate");
+        await AsyncStorage.removeItem("selectedTime");
+      } catch (error) {
+        console.error("Error clearing temp data:", error);
+      }
+    };
+
+    clearTempData();
+  }, []);
+  const handleViewBooking = () => {
+    // Reset navigation stack và chuyển đến tab booking
+    router.replace(`/(booking-flow)/${bookingInfo.id}`);
+  };
+
+  const handleBackToHome = () => {
+    // Reset navigation stack và chuyển về tab home
+    router.replace("/");
+  };
 
   // Giả lập thông tin đặt lịch
   const bookingInfo = {
@@ -22,7 +46,7 @@ export default function BookingSuccess() {
         <View style={styles.content}>
           <View style={styles.animationContainer}>
             <LottieView
-              source={require("../../../assets/animations/success.json")}
+              source={require("../../assets/animations/success.json")}
               autoPlay
               loop={false}
               style={styles.animation}
@@ -73,14 +97,14 @@ export default function BookingSuccess() {
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.footerButton, { backgroundColor: "#2ecc71" }]}
-            onPress={() => router.push(`/booking/${bookingInfo.id}`)}
+            onPress={handleViewBooking}
           >
             <Text style={styles.footerButtonText}>View Booking Details</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.footerButton, { backgroundColor: "#f1f1f1" }]}
-            onPress={() => router.push("/")}
+            onPress={handleBackToHome}
           >
             <Text style={[styles.footerButtonText, { color: "#333" }]}>
               Back to Home

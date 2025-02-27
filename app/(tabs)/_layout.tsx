@@ -1,5 +1,5 @@
-import { Tabs } from "expo-router";
-import React from "react";
+import { Tabs, useRouter, useSegments } from "expo-router";
+import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import { HapticTab } from "@/components/HapticTab";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -9,9 +9,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { AntDesign, Entypo } from "@expo/vector-icons";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const activeColor = "#A83F98";
-
   return (
     <Tabs
       screenOptions={{

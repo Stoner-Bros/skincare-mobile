@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AddPaymentMethod() {
@@ -18,6 +18,15 @@ export default function AddPaymentMethod() {
   const [expiryDate, setExpiryDate] = useState("");
   const [cvv, setCvv] = useState("");
   const [saveCard, setSaveCard] = useState(true);
+
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    navigation.getParent()?.setOptions({ tabBarStyle: { display: "none" } });
+
+    return () =>
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: "flex" } });
+  }, []);
 
   // Format card number with spaces
   const formatCardNumber = (text) => {

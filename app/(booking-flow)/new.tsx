@@ -155,7 +155,7 @@ export default function NewBooking() {
           : undefined,
       });
 
-      router.push("/(tabs)/booking/specialist");
+      router.push("/(booking-flow)/specialist");
     }
   };
 

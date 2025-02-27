@@ -109,7 +109,7 @@ export default function BookingConfirmation() {
 
           // Navigate to success page
           router.push({
-            pathname: "/booking/success",
+            pathname: "/(booking-flow)/success",
             params: { bookingId: bookingDetails.id },
           });
         } catch (error) {

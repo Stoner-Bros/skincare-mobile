@@ -135,7 +135,7 @@ export default function SpecialistSelection() {
   // ngay cả khi không có bottom bar từ layout
   const handleContinue = () => {
     if (selectedSpecialist) {
-      router.push("/booking/date-time");
+      router.push("/(booking-flow)/date-time");
     } else {
       Alert.alert(
         "Chưa chọn chuyên gia",
