@@ -5,32 +5,41 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-
-const specialists = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    specialty: "Facial Expert",
-    image: "https://v0.dev/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 2,
-    name: "Emma Beauty",
-    specialty: "Skin Specialist",
-    image: "https://v0.dev/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 3,
-    name: "Maria Chen",
-    specialty: "Dermatologist",
-    image: "https://v0.dev/placeholder.svg?height=80&width=80",
-  },
-];
+import { useEffect, useState } from "react";
+import { specialistApi } from "../../lib/api/endpoints";
+import type { Specialist } from "../../lib/types/api";
 
 export default function Specialists() {
   const router = useRouter();
+  const [specialists, setSpecialists] = useState<Specialist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadSpecialists();
+  }, []);
+
+  const loadSpecialists = async () => {
+    try {
+      const data = await specialistApi.getSpecialists();
+      // console.log("Raw data from API:", data);
+      setSpecialists(data);
+    } catch (error) {
+      console.error("Error loading specialists:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.section, styles.loadingContainer]}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.section}>
@@ -47,13 +56,11 @@ export default function Specialists() {
             onPress={() => router.push(`/specialist/${specialist.id}`)}
           >
             <Image
-              source={{ uri: specialist.image }}
+              source={{ uri: specialist.avatar }}
               style={styles.specialistImage}
             />
             <Text style={styles.specialistName}>{specialist.name}</Text>
-            <Text style={styles.specialistSpecialty}>
-              {specialist.specialty}
-            </Text>
+            <Text style={styles.specialistSpecialty}>{specialist.role}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -64,6 +71,10 @@ export default function Specialists() {
 const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: "center",
   },
   sectionTitle: {
     fontSize: 18,

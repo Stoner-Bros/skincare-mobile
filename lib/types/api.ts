@@ -30,10 +30,11 @@ export interface Specialist {
   export interface Service {
     id: string;
     name: string;
-    description: string;
-    duration: number;
-    price: number;
     image: string;
+    duration: string;
+    price: number;
+    description: string;
+    category: string;
   }
   
   // API Response Types

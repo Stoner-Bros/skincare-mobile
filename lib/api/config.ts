@@ -2,8 +2,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Configuration
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com';
-
+// export const API_URL = process.env.EXPO_PUBLIC_API_URL ;
+export const API_URL = process.env.EXPO_PUBLIC_API_URL_MOCKAPI ;
 // Create axios instance
 export const apiClient = axios.create({
   baseURL: API_URL,

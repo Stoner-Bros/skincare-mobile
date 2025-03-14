@@ -5,25 +5,50 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
+import { specialistApi } from "../../lib/api/endpoints";
+import type { Specialist } from "../../lib/types/api";
 
 export default function SpecialistPage() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const [specialist, setSpecialist] = useState<Specialist | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock specialist data - replace with actual data fetching
-  const specialist = {
-    id: 1,
-    name: "Sarah Johnson",
-    specialty: "Facial Expert",
-    image: "https://v0.dev/placeholder.svg?height=200&width=200",
-    bio: "Certified skincare specialist with 8 years of experience in facial treatments and skin rejuvenation.",
-    rating: 4.8,
-    reviewCount: 127,
-    availability: ["Mon", "Tue", "Thu", "Fri"],
+  useEffect(() => {
+    loadSpecialist();
+  }, [id]);
+
+  const loadSpecialist = async () => {
+    try {
+      const data = await specialistApi.getSpecialist(id as string);
+      setSpecialist(data);
+    } catch (error) {
+      console.error("Error loading specialist:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!specialist) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text>Specialist not found</Text>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -43,9 +68,9 @@ export default function SpecialistPage() {
       />
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <Image source={{ uri: specialist.image }} style={styles.image} />
+          <Image source={{ uri: specialist.avatar }} style={styles.image} />
           <Text style={styles.name}>{specialist.name}</Text>
-          <Text style={styles.specialty}>{specialist.specialty}</Text>
+          <Text style={styles.specialty}>{specialist.role}</Text>
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={20} color="#FFD700" />
             <Text style={styles.rating}>{specialist.rating}</Text>
@@ -56,16 +81,29 @@ export default function SpecialistPage() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.bio}>{specialist.bio}</Text>
+          <Text style={styles.sectionTitle}>Specialties</Text>
+          <View style={styles.specialtiesContainer}>
+            {specialist.specialties.map((specialty) => (
+              <View key={specialty} style={styles.dayChip}>
+                <Text style={styles.dayText}>{specialty}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Availability</Text>
           <View style={styles.availabilityContainer}>
-            {specialist.availability.map((day) => (
-              <View key={day} style={styles.dayChip}>
-                <Text style={styles.dayText}>{day}</Text>
+            {Object.keys(specialist.availability).map((date) => (
+              <View key={date} style={styles.dateContainer}>
+                <Text style={styles.dateText}>{date}</Text>
+                <View style={styles.timeSlots}>
+                  {specialist.availability[date].map((time) => (
+                    <Text key={time} style={styles.timeSlot}>
+                      {time}
+                    </Text>
+                  ))}
+                </View>
               </View>
             ))}
           </View>
@@ -86,6 +124,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
     alignItems: "center",
@@ -133,15 +175,33 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 12,
   },
-  bio: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#333",
-  },
-  availabilityContainer: {
+  specialtiesContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  availabilityContainer: {
+    gap: 12,
+  },
+  dateContainer: {
+    marginBottom: 8,
+  },
+  dateText: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  timeSlots: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  timeSlot: {
+    backgroundColor: "#f1f1f1",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    fontSize: 14,
   },
   dayChip: {
     backgroundColor: "#f1f1f1",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,45 +6,37 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { serviceApi } from "../../lib/api/endpoints";
 
 type TabType = "about" | "reviews" | "bio";
 
-const specialist = {
-  id: 1,
-  name: "Jazy Dewo",
-  image:
-    "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-ipvuot02jMdPs4tqEeExcc03Lqjw79.png",
-  rating: 4.88,
-  lastBooked: "Today",
-  description:
-    "The strong pressure of this treatment is great for fitness and sports while managing muscle tissues and speeding up recovery. Say farewell to that soreness after a workout. The session will end with a gradual increase in pressure.",
-  totalReviews: 1250,
-  totalBookings: 1839,
-  experience: "5 Years",
-  languages: ["English", "PL"],
-  certifications: ["Fully Insured and Certified"],
-  reviewStats: {
-    total: 1250,
-    average: 4.88,
-    distribution: [
-      { stars: 5, count: 955, percentage: "76%" },
-      { stars: 4, count: 200, percentage: "38%" },
-      { stars: 3, count: 25, percentage: "10%" },
-      { stars: 2, count: 25, percentage: "10%" },
-      { stars: 1, count: 10, percentage: "5%" },
-    ],
-  },
-  bio: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque ut urna enim ac pretium ornare. Aenean sagittis libero vitae metus cursus placidium. Ut eget imperdiet lacus, nec pretium justo. Etiam ac nunc tellus. Pellentesque sed accumsan ex. Aliquam dignissim imperdiet est, ut faucibus quam eleifend nec. Aliquam blandit ariet mi vitae blandit. Morbi sodales mauris nec placerat. Sed quis quam.",
-};
-
-export default function SpecialistDetail() {
+export default function TreatmentDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>("about");
+  const [treatment, setTreatment] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadTreatment();
+  }, [id]);
+
+  const loadTreatment = async () => {
+    try {
+      const data = await serviceApi.getService(id as string);
+      console.log("Treatment data:", data);
+      setTreatment(data);
+    } catch (error) {
+      console.error("Error loading treatment:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const renderStars = (rating: number) => {
     return [...Array(5)].map((_, index) => (
@@ -57,33 +49,53 @@ export default function SpecialistDetail() {
     ));
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={[styles.container, styles.loadingContainer]}>
+          <ActivityIndicator size="large" color="#2ecc71" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!treatment) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={[styles.container, styles.loadingContainer]}>
+          <Text>Treatment not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const renderAboutTab = () => (
     <View style={styles.tabContent}>
       <View style={styles.ratingSection}>
         <View style={styles.ratingHeader}>
-          <View style={styles.stars}>{renderStars(specialist.rating)}</View>
+          <View style={styles.stars}>{renderStars(treatment.rating)}</View>
           <View style={styles.verifiedBadge}>
             <Ionicons name="checkmark-circle" size={16} color="#2ecc71" />
             <Text style={styles.verifiedText}>Verified Appointment</Text>
           </View>
         </View>
-        <Text style={styles.description}>{specialist.description}</Text>
+        <Text style={styles.description}>{treatment.description}</Text>
       </View>
 
       <View style={styles.statsSection}>
-        <Text style={styles.statsTitle}>RATED {specialist.rating} by</Text>
-        <Text style={styles.statsValue}>{specialist.totalReviews} Reviews</Text>
+        <Text style={styles.statsTitle}>RATED {treatment.rating} by</Text>
+        <Text style={styles.statsValue}>{treatment.totalReviews} Reviews</Text>
 
         <Text style={styles.statsTitle}>Number of Bookings</Text>
-        <Text style={styles.statsValue}>{specialist.totalBookings}</Text>
+        <Text style={styles.statsValue}>{treatment.totalBookings}</Text>
 
         <Text style={styles.statsTitle}>Experience</Text>
-        <Text style={styles.statsValue}>{specialist.experience}</Text>
+        <Text style={styles.statsValue}>{treatment.experience}</Text>
 
         <Text style={styles.statsTitle}>Languages</Text>
-        <Text style={styles.statsValue}>{specialist.languages.join(", ")}</Text>
+        <Text style={styles.statsValue}>{treatment.languages.join(", ")}</Text>
 
-        {specialist.certifications.map((cert, index) => (
+        {treatment.certifications.map((cert: string, index: number) => (
           <View key={index} style={styles.certificationItem}>
             <Ionicons name="shield-checkmark" size={20} color="#2ecc71" />
             <Text style={styles.certificationText}>{cert}</Text>
@@ -97,15 +109,15 @@ export default function SpecialistDetail() {
     <View style={styles.tabContent}>
       <View style={styles.reviewsHeader}>
         <Text style={styles.reviewsCount}>
-          {specialist.reviewStats.total} Reviews
+          {treatment.reviewStats.total} Reviews
         </Text>
         <Text style={styles.reviewsAverage}>
-          {specialist.reviewStats.average} out of 5.0
+          {treatment.reviewStats.average} out of 5.0
         </Text>
       </View>
 
       <View style={styles.distributionContainer}>
-        {specialist.reviewStats.distribution.map((item, index) => (
+        {treatment.reviewStats.distribution.map((item: any, index: number) => (
           <View key={index} style={styles.distributionRow}>
             <View style={styles.stars}>{renderStars(item.stars)}</View>
             <View style={styles.distributionBar}>
@@ -125,7 +137,7 @@ export default function SpecialistDetail() {
 
   const renderBioTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.bioText}>{specialist.bio}</Text>
+      <Text style={styles.bioText}>{treatment.bio}</Text>
     </View>
   );
 
@@ -146,16 +158,16 @@ export default function SpecialistDetail() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Image source={{ uri: specialist.image }} style={styles.image} />
+        <Image source={{ uri: treatment.image }} style={styles.image} />
 
         <View style={styles.profileInfo}>
-          <Text style={styles.name}>{specialist.name}</Text>
+          <Text style={styles.name}>{treatment.name}</Text>
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={16} color="#FFD700" />
-            <Text style={styles.rating}>{specialist.rating}</Text>
+            <Text style={styles.rating}>{treatment.rating}</Text>
           </View>
           <Text style={styles.lastBooked}>
-            Last Booked: {specialist.lastBooked}
+            Last Booked: {treatment.lastBooked}
           </Text>
         </View>
 
@@ -209,7 +221,7 @@ export default function SpecialistDetail() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.bookButton}
-          onPress={() => router.push(`/booking/new?specialistId=${id}`)}
+          onPress={() => router.push(`/booking/new?treatmentId=${id}`)}
         >
           <Text style={styles.bookButtonText}>Book Now</Text>
         </TouchableOpacity>
@@ -408,5 +420,9 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

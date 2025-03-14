@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,42 +6,50 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
-const popularTreatments = [
-  {
-    id: 1,
-    name: "Deep Tissue Massage",
-    image: "https://v0.dev/placeholder.svg?height=150&width=300",
-    duration: "60 min",
-    price: "$89",
-  },
-  {
-    id: 2,
-    name: "Urban Classic Massage",
-    image: "https://v0.dev/placeholder.svg?height=150&width=300",
-    duration: "45 min",
-    price: "$75",
-  },
-  {
-    id: 3,
-    name: "Relaxing Massage",
-    image: "https://v0.dev/placeholder.svg?height=150&width=300",
-    duration: "90 min",
-    price: "$120",
-  },
-];
+import { serviceApi } from "../../lib/api/endpoints";
+import type { Service } from "../../lib/types/api";
 
 export default function PopularTreatments() {
   const router = useRouter();
+  const [treatments, setTreatments] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadTreatments();
+  }, []);
+
+  const loadTreatments = async () => {
+    try {
+      const data = await serviceApi.getServices();
+      console.log("Raw treatments data:", data);
+      // Lấy mảng treatments từ response
+      const treatmentsData = data[0]?.treatments || [];
+      console.log("Processed treatments data:", treatmentsData);
+      setTreatments(treatmentsData);
+    } catch (error) {
+      console.error("Error loading treatments:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.section, styles.loadingContainer]}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Popular Treatments</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {popularTreatments.map((treatment) => (
+        {treatments.map((treatment) => (
           <Pressable
             key={treatment.id}
             style={styles.treatmentCard}
@@ -56,9 +64,9 @@ export default function PopularTreatments() {
               <View style={styles.treatmentDetails}>
                 <Text style={styles.duration}>
                   <Ionicons name="time-outline" size={14} color="#666" />{" "}
-                  {treatment.duration}
+                  {treatment.duration} min
                 </Text>
-                <Text style={styles.price}>{treatment.price}</Text>
+                <Text style={styles.price}>${treatment.price}</Text>
               </View>
             </View>
           </Pressable>
@@ -71,6 +79,10 @@ export default function PopularTreatments() {
 const styles = StyleSheet.create({
   section: {
     padding: 16,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: "center",
   },
   sectionTitle: {
     fontSize: 20,

@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import ChatSupportButton from "@/components/common/ChatSupportButton";
 
 const menuItems = [
   {

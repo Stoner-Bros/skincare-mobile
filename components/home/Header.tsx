@@ -7,9 +7,6 @@ export default function Header() {
 
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.push("/menu")}>
-        <Ionicons name="menu-outline" size={24} color="black" />
-      </TouchableOpacity>
       <Text style={styles.title}>Skincare Booking</Text>
       <TouchableOpacity onPress={() => router.push("/bookmarks")}>
         <Ionicons name="bookmark-outline" size={24} color="#ff4757" />

@@ -44,19 +44,23 @@ export const bookingApi = {
   },
 };
 
-// Specialist Endpoints
+// Specialist API endpoints
 export const specialistApi = {
   // Get all specialists
-  getSpecialists: async (params?: {
-    service?: string;
-    date?: string;
-    page?: number;
-    limit?: number;
-  }) => {
-    const response = await apiClient.get<PaginatedResponse<Specialist>>('/specialists', { 
-      params 
-    });
-    return response.data;
+  getSpecialists: async () => {
+    const response = await apiClient.get<Array<{specialists: Specialist[]}>>('/specialists');
+    return response.data[0]?.specialists || [];
+  },
+
+  // Get single specialist
+  getSpecialist: async (id: string) => {
+    const response = await apiClient.get<Array<{specialists: Specialist[]}>>('/specialists');
+    const specialists = response.data[0]?.specialists || [];
+    const specialist = specialists.find(s => s.id === id);
+    if (!specialist) {
+      throw new Error('Specialist not found');
+    }
+    return specialist;
   },
 
   // Get specialist availability
@@ -75,5 +79,14 @@ export const serviceApi = {
   getServices: async () => {
     const response = await apiClient.get<ApiResponse<Service[]>>('/services');
     return response.data;
+  },
+  getService: async (id: string) => {
+    const response = await apiClient.get<Array<{treatments: Service[]}>>('/services');
+    const treatments = response.data[0]?.treatments || [];
+    const treatment = treatments.find(t => t.id === id);
+    if (!treatment) {
+      throw new Error('Treatment not found');
+    }
+    return treatment;
   },
 };

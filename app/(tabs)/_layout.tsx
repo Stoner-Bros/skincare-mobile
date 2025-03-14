@@ -7,6 +7,7 @@ import TabBarBackground from "@/components/ui/TabBarBackground";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { AntDesign, Entypo } from "@expo/vector-icons";
+import ChatSupportButton from "@/components/common/ChatSupportButton";
 
 export default function TabLayout() {
   const activeColor = "#A83F98";
@@ -48,6 +49,15 @@ export default function TabLayout() {
           title: "Booking",
           tabBarIcon: ({ color }) => (
             <AntDesign size={28} name="calendar" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="blog" // Màn hình Booking
+        options={{
+          title: "Blog",
+          tabBarIcon: ({ color }) => (
+            <AntDesign size={28} name="book" color={color} />
           ),
         }}
       />

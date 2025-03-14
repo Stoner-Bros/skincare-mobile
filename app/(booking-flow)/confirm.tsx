@@ -70,59 +70,44 @@ export default function BookingConfirmation() {
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-
-      // Save booking details to AsyncStorage
-      const saveBooking = async () => {
-        try {
-          const bookingDetails = {
-            id: Math.floor(Math.random() * 1000000).toString(),
-            date: params.date,
-            time: params.time,
-            specialist: "Jazy Dewo",
-            treatment: "Deep Tissue Massage (60 min)",
-            paymentMethod: selectedPayment,
-            total: total.toFixed(2),
-            status: "confirmed",
-            notes: notes,
-          };
-
-          // Get existing bookings
-          const existingBookingsJson = await AsyncStorage.getItem("bookings");
-          const existingBookings = existingBookingsJson
-            ? JSON.parse(existingBookingsJson)
-            : [];
-
-          // Add new booking
-          const updatedBookings = [...existingBookings, bookingDetails];
-
-          // Save updated bookings
-          await AsyncStorage.setItem(
-            "bookings",
-            JSON.stringify(updatedBookings)
-          );
-
-          // Navigate to success page
-          router.push({
-            pathname: "/(booking-flow)/success",
-            params: { bookingId: bookingDetails.id },
-          });
-        } catch (error) {
-          console.error("Error saving booking:", error);
-          Alert.alert(
-            "Error",
-            "There was an error confirming your booking. Please try again."
-          );
-        }
+    try {
+      // Save current booking details to AsyncStorage for checkout page
+      const bookingDetails = {
+        date: params.date,
+        time: params.time,
+        specialist: "Jazy Dewo",
+        treatment: "Deep Tissue Massage (60 min)",
+        basePrice: basePrice,
+        tax: tax,
+        discount: discount,
+        total: total,
+        notes: notes,
       };
 
-      saveBooking();
-    }, 1500);
+      await AsyncStorage.setItem(
+        "currentBooking",
+        JSON.stringify(bookingDetails)
+      );
+
+      // Navigate to checkout page
+      router.push({
+        pathname: "/(booking-flow)/checkout",
+        params: {
+          paymentMethod: selectedPayment,
+        },
+      });
+    } catch (error) {
+      console.error("Error saving booking details:", error);
+      Alert.alert(
+        "Error",
+        "There was an error processing your booking. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addNewPaymentMethod = () => {
@@ -293,7 +278,7 @@ export default function BookingConfirmation() {
               <Text style={styles.confirmButtonText}>Processing...</Text>
             ) : (
               <Text style={styles.confirmButtonText}>
-                Confirm & Pay ${total.toFixed(2)}
+                Proceed to Checkout (${total.toFixed(2)})
               </Text>
             )}
           </TouchableOpacity>

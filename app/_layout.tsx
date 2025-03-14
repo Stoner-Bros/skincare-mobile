@@ -16,6 +16,7 @@ import { PaperProvider } from "react-native-paper"; // Import PaperProvider
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import BookProvider from "./context/BookingContext";
+import ChatSupportButton from "@/components/common/ChatSupportButton";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -53,7 +54,14 @@ export default function RootLayout() {
                 name="(booking-flow)"
                 options={{ headerShown: false }}
               />
+              <Stack.Screen
+                name="(blog-flow)"
+                options={{ headerShown: false }}
+              />
+
+              {/* Other screens */}
             </Stack>
+            <ChatSupportButton />
           </ThemeProvider>
         </BookProvider>
       </PaperProvider>

@@ -54,11 +54,11 @@ export default function BookingDetail() {
   };
 
   const handleReschedule = () => {
-    router.push(`/booking/reschedule/${id}`);
+    router.push(`/(booking-flow)/reschedule/${id}`);
   };
 
   const handleCancel = () => {
-    router.push(`/booking/cancel/${id}`);
+    router.push(`/(booking-flow)/cancel/${id}`);
   };
 
   return (

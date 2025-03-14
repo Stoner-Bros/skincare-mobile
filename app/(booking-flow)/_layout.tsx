@@ -2,7 +2,7 @@ import { Stack } from "expo-router";
 
 export default function BookingFlowLayout() {
   return (
-    <Stack>
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="new" options={{ title: "New Booking" }} />
       <Stack.Screen
         name="date-time"
@@ -18,7 +18,6 @@ export default function BookingFlowLayout() {
         options={{
           title: "Payment",
           headerShown: false,
-          tabBarStyle: { display: "none" },
         }}
       />
       <Stack.Screen
@@ -26,7 +25,6 @@ export default function BookingFlowLayout() {
         options={{
           title: "Success",
           headerShown: false,
-          tabBarStyle: { display: "none" },
         }}
       />
       <Stack.Screen name="confirm" options={{ title: "Confirm Booking" }} />
@@ -37,7 +35,7 @@ export default function BookingFlowLayout() {
       <Stack.Screen name="cancel/[id]" options={{ title: "Cancel Booking" }} />
       <Stack.Screen
         name="reschedule/[id]"
-        options={{ title: "Reschedule Booking" }}
+        options={{ title: "Reschedule Booking", headerShown: false }}
       />
     </Stack>
   );
