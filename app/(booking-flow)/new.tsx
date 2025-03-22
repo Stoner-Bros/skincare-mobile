@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,15 @@ import {
   ScrollView,
   Image,
   TextInput,
+  ActivityIndicator,
+  Alert,
+  Button,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useBook } from "@/app/context/BookingContext";
+import type { Service } from "@/lib/types/api";
 
 // Dữ liệu mẫu cho các dịch vụ
 const services = [
@@ -102,27 +106,90 @@ const locations = [
   },
 ];
 
+interface ServiceCategory {
+  id: number;
+  name: string;
+  description: string;
+  image: string;
+  treatments: {
+    id: number;
+    name: string;
+    duration: string;
+    price: number;
+  }[];
+}
+
+interface Location {
+  id: number;
+  name: string;
+  address: string;
+  rating: number;
+  reviews: number;
+  image: string;
+}
+
 export default function NewBooking() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [services, setServices] = useState<ServiceCategory[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<number | null>(null);
-  const [selectedTreatment, setSelectedTreatment] = useState<number | null>(
+  const [selectedTreatment, setSelectedTreatment] = useState<string | null>(
     null
   );
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
-  const { setBookingData } = useBook(); // Lấy setBookingData từ context
+  const [treatments, setTreatments] = useState<Service[]>([]);
 
-  // Lấy danh sách các treatment của service đã chọn
-  const treatments = selectedService
-    ? services.find((s) => s.id === selectedService)?.treatments || []
-    : [];
+  const { setBookingData } = useBook();
 
-  // Lấy thông tin chi tiết của treatment đã chọn
+  // Load data từ mockApi
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        const [servicesRes, locationsRes] = await Promise.all([
+          mockApi.services.getCategories(),
+          mockApi.locations.getBranches(),
+        ]);
+        setServices(servicesRes.data || []);
+        setLocations(locationsRes.data || []);
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // Load treatments khi chọn service
+  useEffect(() => {
+    const loadTreatments = async () => {
+      if (selectedService) {
+        try {
+          const response = await mockApi.services.getTreatments(
+            selectedService
+          );
+          setTreatments(response.data || []);
+        } catch (error) {
+          console.error("Error loading treatments:", error);
+        }
+      } else {
+        setTreatments([]);
+      }
+    };
+
+    loadTreatments();
+  }, [selectedService]);
+
+  // Get treatment details
   const treatmentDetails = selectedTreatment
     ? treatments.find((t) => t.id === selectedTreatment)
     : null;
 
-  // Lấy thông tin chi tiết của location đã chọn
+  // Get location details
   const locationDetails = selectedLocation
     ? locations.find((l) => l.id === selectedLocation)
     : null;
@@ -130,37 +197,53 @@ export default function NewBooking() {
   // Kiểm tra xem có thể tiếp tục không
   const canContinue = selectedService && selectedTreatment && selectedLocation;
 
-  // Xử lý khi nhấn nút tiếp tục
-  // Trong hàm handleContinue
+  // Handle continue button press
   const handleContinue = () => {
-    if (canContinue) {
+    if (selectedService && selectedTreatment && selectedLocation) {
+      const selectedServiceData = services.find(
+        (s) => s.id === selectedService
+      );
+      const selectedTreatmentData = treatments.find(
+        (t) => t.id === selectedTreatment
+      );
+      const selectedLocationData = locations.find(
+        (l) => l.id === selectedLocation
+      );
+
+      if (
+        !selectedServiceData ||
+        !selectedTreatmentData ||
+        !selectedLocationData
+      ) {
+        return;
+      }
+
       setBookingData({
-        service: selectedService
-          ? {
-              id: String(selectedService.id), // Ép kiểu number -> string
-              name: selectedService.name,
-            }
-          : undefined,
-        treatment: selectedTreatment
-          ? {
-              id: String(selectedTreatment.id),
-              name: selectedTreatment.name,
-            }
-          : undefined,
-        location: selectedLocation
-          ? {
-              id: String(selectedLocation.id),
-              name: selectedLocation.name,
-            }
-          : undefined,
+        service: {
+          id: selectedTreatmentData.id,
+          name: selectedTreatmentData.name,
+        },
       });
 
       router.push("/(booking-flow)/specialist");
     }
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2ecc71" />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={24} color="#333" />
+        <Text style={styles.backButtonText}>Quay lại</Text>
+      </TouchableOpacity>
+
       <View style={styles.header}>
         <Text style={styles.title}>Book a Treatment</Text>
         <Text style={styles.subtitle}>Select a service to get started</Text>
@@ -247,7 +330,7 @@ export default function NewBooking() {
                     <View style={styles.treatmentDetail}>
                       <Ionicons name="time-outline" size={16} color="#666" />
                       <Text style={styles.treatmentDetailText}>
-                        {treatment.duration}
+                        {treatment.duration} min
                       </Text>
                     </View>
                     <View style={styles.treatmentDetail}>
@@ -320,7 +403,7 @@ export default function NewBooking() {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Duration:</Text>
               <Text style={styles.summaryValue}>
-                {treatmentDetails.duration}
+                {treatmentDetails.duration} min
               </Text>
             </View>
             <View style={styles.summaryRow}>
@@ -605,5 +688,23 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 100,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    paddingBottom: 0,
+  },
+  backButtonText: {
+    fontSize: 16,
+    marginLeft: 8,
+    color: "#333",
+    fontWeight: "500",
   },
 });

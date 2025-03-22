@@ -11,8 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { serviceApi } from "../../lib/api/endpoints";
-
+import { api } from "../../lib/api/endpoints";
 type TabType = "about" | "reviews" | "bio";
 
 export default function TreatmentDetail() {
@@ -28,8 +27,7 @@ export default function TreatmentDetail() {
 
   const loadTreatment = async () => {
     try {
-      const data = await serviceApi.getService(id as string);
-      console.log("Treatment data:", data);
+      const data = await api.treatments.getTreatment(id as string);
       setTreatment(data);
     } catch (error) {
       console.error("Error loading treatment:", error);
@@ -76,7 +74,7 @@ export default function TreatmentDetail() {
           <View style={styles.stars}>{renderStars(treatment.rating)}</View>
           <View style={styles.verifiedBadge}>
             <Ionicons name="checkmark-circle" size={16} color="#2ecc71" />
-            <Text style={styles.verifiedText}>Verified Appointment</Text>
+            <Text style={styles.verifiedText}>Verified Treatment</Text>
           </View>
         </View>
         <Text style={styles.description}>{treatment.description}</Text>
@@ -86,10 +84,10 @@ export default function TreatmentDetail() {
         <Text style={styles.statsTitle}>RATED {treatment.rating} by</Text>
         <Text style={styles.statsValue}>{treatment.totalReviews} Reviews</Text>
 
-        <Text style={styles.statsTitle}>Number of Bookings</Text>
+        <Text style={styles.statsTitle}>Total Bookings</Text>
         <Text style={styles.statsValue}>{treatment.totalBookings}</Text>
 
-        <Text style={styles.statsTitle}>Experience</Text>
+        <Text style={styles.statsTitle}>Experience Level</Text>
         <Text style={styles.statsValue}>{treatment.experience}</Text>
 
         <Text style={styles.statsTitle}>Languages</Text>

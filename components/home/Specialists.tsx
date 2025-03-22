@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { specialistApi } from "../../lib/api/endpoints";
+import { api } from "../../lib/api/endpoints";
 import type { Specialist } from "../../lib/types/api";
 
 export default function Specialists() {
@@ -21,18 +21,29 @@ export default function Specialists() {
     loadSpecialists();
   }, []);
 
+  // const loadSpecialists = async () => {
+  //   try {
+  //     const data = await specialistApi.getSpecialists();
+  //     // console.log("Raw data from API:", data);
+  //     setSpecialists(data);
+  //   } catch (error) {
+  //     console.error("Error loading specialists:", error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  // Trong loadSpecialists
   const loadSpecialists = async () => {
     try {
-      const data = await specialistApi.getSpecialists();
-      // console.log("Raw data from API:", data);
-      setSpecialists(data);
+      const response = await api.specialists.getSpecialists();
+      setSpecialists(response.data || []);
     } catch (error) {
       console.error("Error loading specialists:", error);
     } finally {
       setLoading(false);
     }
   };
-
   if (loading) {
     return (
       <View style={[styles.section, styles.loadingContainer]}>

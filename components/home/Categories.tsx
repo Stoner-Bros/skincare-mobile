@@ -6,16 +6,21 @@ import {
   StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
-
-const categories = [
-  { id: 1, name: "Facial", icon: "✨" },
-  { id: 2, name: "Body Care", icon: "🧴" },
-  { id: 3, name: "Massage", icon: "💆‍♀️" },
-  { id: 4, name: "Treatments", icon: "⭐" },
-];
+import { api } from "../../lib/api/endpoints";
 
 export default function Categories() {
   const router = useRouter();
+  const categories = api.categories.getCategories();
+
+  const handleCategoryPress = (category) => {
+    router.push({
+      pathname: `/category/${category.id}`,
+      params: {
+        name: category.name,
+        treatments: JSON.stringify(category.treatments),
+      },
+    });
+  };
 
   return (
     <View style={styles.section}>
@@ -29,10 +34,13 @@ export default function Categories() {
           <TouchableOpacity
             key={category.id}
             style={styles.categoryItem}
-            onPress={() => router.push(`/category/${category.id}`)}
+            onPress={() => handleCategoryPress(category)}
           >
             <Text style={styles.categoryIcon}>{category.icon}</Text>
             <Text style={styles.categoryName}>{category.name}</Text>
+            <Text style={styles.treatmentCount}>
+              {category.treatments.length} treatments
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -68,5 +76,10 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 14,
     textAlign: "center",
+  },
+  treatmentCount: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 4,
   },
 });

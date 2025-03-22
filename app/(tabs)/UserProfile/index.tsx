@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -5,46 +6,179 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ChatSupportButton from "@/components/common/ChatSupportButton";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { api } from "@/lib/api/endpoints";
 
-const menuItems = [
-  {
-    icon: "calendar-outline",
-    title: "My Bookings",
-    route: "/UserProfile/bookings",
-  },
-  {
-    icon: "heart-outline",
-    title: "Favorites",
-    route: "/UserProfile/favorites",
-  },
-  {
-    icon: "card-outline",
-    title: "Payment Methods",
-    route: "/UserProfile/payments",
-  },
-  {
-    icon: "notifications-outline",
-    title: "Notifications",
-    route: "/UserProfile/notifications",
-  },
-  {
-    icon: "settings-outline",
-    title: "Settings",
-    route: "/UserProfile/settings",
-  },
-  {
-    icon: "help-circle-outline",
-    title: "Help & Support",
-    route: "/UserProfile/support",
-  },
-];
+// Helper function để xử lý navigation với type safety
+const navigateTo = (router: ReturnType<typeof useRouter>, path: string) => {
+  router.push(path as any);
+};
 
-export default function ProfileScreen() {
+interface UserProfile {
+  fullName: string;
+  email: string;
+  avatar?: string;
+  phone?: string;
+  memberSince?: string;
+  isVerified?: boolean;
+}
+
+const ProfileScreen = () => {
   const router = useRouter();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Các chức năng trong profile
+  const profileOptions = [
+    {
+      icon: "calendar-outline",
+      title: "Lịch đặt của tôi",
+      description: "Xem và quản lý các lịch đặt của bạn",
+      route: "bookings", // Đường dẫn tương đối
+    },
+    {
+      icon: "card-outline",
+      title: "Thanh toán",
+      description: "Quản lý phương thức thanh toán và lịch sử",
+      route: "payments",
+    },
+    {
+      icon: "notifications-outline",
+      title: "Thông báo",
+      description: "Thiết lập thông báo và cảnh báo",
+      route: "notifications",
+    },
+    {
+      icon: "settings-outline",
+      title: "Cài đặt",
+      description: "Chỉnh sửa thông tin cá nhân và mật khẩu",
+      route: "settings",
+    },
+    {
+      icon: "headset-outline",
+      title: "Hỗ trợ",
+      description: "Liên hệ với đội ngũ hỗ trợ của chúng tôi",
+      route: "support",
+    },
+  ];
+
+  // Tải thông tin profile từ API
+  const loadUserProfile = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      // Kiểm tra token
+      const token = await AsyncStorage.getItem("authToken");
+      if (!token) {
+        // Nếu không có token, chuyển về trang login
+        router.push("/(auth)/login");
+        return;
+      }
+
+      // Gọi API để lấy thông tin profile
+      const response = await api.auth.getProfile();
+      console.log("Profile response:", response);
+
+      if (response && response.data) {
+        // Định dạng dữ liệu từ API response
+        const userData = response.data;
+
+        // Tạo đối tượng profile từ dữ liệu API
+        const userProfile: UserProfile = {
+          fullName: userData.fullName || "Người dùng",
+          email: userData.email || "",
+          avatar: userData.avatar,
+          phone: userData.phone,
+          memberSince: userData.createdAt
+            ? new Date(userData.createdAt).toLocaleDateString("vi-VN")
+            : new Date().toLocaleDateString("vi-VN"),
+          isVerified: userData.isVerified || false,
+        };
+
+        setProfile(userProfile);
+      } else {
+        setError("Không thể tải thông tin người dùng");
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+      setError("Đã xảy ra lỗi khi tải thông tin người dùng");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hàm đăng xuất
+  const handleLogout = async () => {
+    Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất không?", [
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+      {
+        text: "Đăng xuất",
+        onPress: async () => {
+          try {
+            // Gọi API đăng xuất
+            await api.auth.logout();
+          } catch (error) {
+            console.error("Logout error:", error);
+            // Vẫn tiếp tục xóa token ngay cả khi API lỗi
+          } finally {
+            // Xóa token lưu trữ
+            await AsyncStorage.removeItem("authToken");
+            await AsyncStorage.removeItem("refreshToken");
+            // Chuyển đến trang login
+            router.push("/(auth)/login");
+          }
+        },
+      },
+    ]);
+  };
+
+  // Tải dữ liệu khi component được mount
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  // Hiển thị loading spinner khi đang tải dữ liệu
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#A83F98" />
+        <Text style={styles.loadingText}>Đang tải thông tin người dùng...</Text>
+      </View>
+    );
+  }
+
+  // Hiển thị thông báo lỗi nếu có
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadUserProfile}>
+          <Text style={styles.retryButtonText}>Thử lại</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.retryButton,
+            { backgroundColor: "#FF3B30", marginTop: 12 },
+          ]}
+          onPress={() => router.push("/(auth)/login")}
+        >
+          <Text style={styles.retryButtonText}>Đăng nhập lại</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -56,144 +190,235 @@ export default function ProfileScreen() {
       />
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <Image
-            source={{
-              uri: "https://v0.dev/placeholder.svg?height=150&width=150",
-            }}
-            style={styles.avatar}
-          />
-          <Text style={styles.name}>Jessica Parker</Text>
-          <Text style={styles.email}>jessica.parker@example.com</Text>
+          <View style={styles.profileContainer}>
+            <Image
+              source={{
+                uri:
+                  profile?.avatar ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    profile?.fullName || "User"
+                  )}&background=random&color=fff&size=256`,
+              }}
+              style={styles.profileImage}
+            />
+            <View style={styles.profileInfo}>
+              <View style={styles.nameContainer}>
+                <Text style={styles.profileName}>{profile?.fullName}</Text>
+                {profile?.isVerified && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={18}
+                    color="#4CAF50"
+                    style={{ marginLeft: 4 }}
+                  />
+                )}
+              </View>
+              <Text style={styles.profileEmail}>{profile?.email}</Text>
+              <Text style={styles.memberSince}>
+                Thành viên từ: {profile?.memberSince}
+              </Text>
+            </View>
+          </View>
 
           <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => router.push("/profile/edit")}
+            style={styles.editProfileButton}
+            onPress={() => navigateTo(router, "edit")}
           >
-            <Text style={styles.editButtonText}>Edit Profile</Text>
+            <Text style={styles.editProfileText}>Chỉnh sửa</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.stats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>12</Text>
-            <Text style={styles.statLabel}>Bookings</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>4</Text>
-            <Text style={styles.statLabel}>Favorites</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>3</Text>
-            <Text style={styles.statLabel}>Reviews</Text>
-          </View>
-        </View>
-
-        <View style={styles.menu}>
-          {menuItems.map((item, index) => (
+        <View style={styles.optionsContainer}>
+          {profileOptions.map((option, index) => (
             <TouchableOpacity
               key={index}
-              style={styles.menuItem}
-              onPress={() => router.push(item.route)}
+              style={styles.optionItem}
+              onPress={() => navigateTo(router, option.route)}
             >
-              <View style={styles.menuItemContent}>
-                <Ionicons name={item.icon as any} size={24} color="#333" />
-                <Text style={styles.menuItemText}>{item.title}</Text>
+              <View style={styles.optionIconContainer}>
+                <Ionicons name={option.icon as any} size={24} color="#A83F98" />
               </View>
-              <Ionicons name="chevron-forward" size={24} color="#ccc" />
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>{option.title}</Text>
+                <Text style={styles.optionDescription}>
+                  {option.description}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#A8A8A8" />
             </TouchableOpacity>
           ))}
         </View>
 
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={() => {
-            // Handle logout
-          }}
-        >
-          <Ionicons name="log-out-outline" size={24} color="#ff4757" />
-          <Text style={styles.logoutText}>Log Out</Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
+          <Text style={styles.logoutText}>Đăng xuất</Text>
         </TouchableOpacity>
+
+        <Text style={styles.versionText}>Phiên bản 1.0.0</Text>
       </ScrollView>
     </>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#f5f5f5",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+  },
+  loadingText: {
+    marginTop: 12,
+    color: "#666",
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#f5f5f5",
+  },
+  errorText: {
+    marginTop: 12,
+    color: "#666",
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: "#A83F98",
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "500",
   },
   header: {
-    alignItems: "center",
-    padding: 24,
+    backgroundColor: "#fff",
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f1f1f1",
+    borderBottomColor: "#e0e0e0",
   },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
+  profileContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  name: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 4,
+  profileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  email: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 16,
+  profileInfo: {
+    marginLeft: 16,
+    flex: 1,
   },
-  editButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#f1f1f1",
+  nameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  editButtonText: {
+  profileName: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  profileEmail: {
     fontSize: 14,
+    color: "#666",
+    marginTop: 4,
+  },
+  memberSince: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 4,
+  },
+  editProfileButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  editProfileText: {
+    color: "#A83F98",
+    fontWeight: "600",
+  },
+  optionsContainer: {
+    backgroundColor: "#fff",
+    marginTop: 16,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  optionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  optionIconContainer: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#F8F0F7",
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  optionContent: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  optionTitle: {
+    fontSize: 16,
     fontWeight: "500",
     color: "#333",
   },
-  stats: {
+  optionDescription: {
+    fontSize: 13,
+    color: "#888",
+    marginTop: 2,
+  },
+  logoutButton: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f1f1",
-  },
-  statItem: {
     alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: "#666",
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: "#f1f1f1",
-  },
-  menu: {
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginTop: 24,
     padding: 16,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f1f1",
+  logoutText: {
+    color: "#FF3B30",
+    fontWeight: "600",
+    marginLeft: 8,
+    fontSize: 16,
   },
-  menuItemContent: {
-    flexDirection: "row",
-    alignItems: "center",
+  versionText: {
+    textAlign: "center",
+    color: "#999",
+    marginTop: 24,
+    marginBottom: 30,
+    fontSize: 12,
   },
 });
+
+export default ProfileScreen;

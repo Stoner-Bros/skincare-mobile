@@ -1,116 +1,211 @@
-import { Link } from "expo-router";
 import React, { useState } from "react";
-import { View, StyleSheet } from "react-native";
-import { TextInput, Button, Text, useTheme } from "react-native-paper";
-import AntDesign from "@expo/vector-icons/AntDesign";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
+import { Text, TextInput, Button } from "react-native-paper";
+import { Link, useRouter } from "expo-router";
+import { api } from "@/lib/api/endpoints";
+import type { AccountCreationRequest } from "@/lib/types/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function RegisterScreen() {
-  const theme = useTheme(); // Để sử dụng theme hiện tại
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+const RegisterScreen = () => {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState<
+    AccountCreationRequest & { confirmPassword: string }
+  >({
+    email: "",
+    password: "",
+    fullName: "",
+    confirmPassword: "",
+  });
 
-  const handleRegister = () => {
-    if (password !== confirmPassword) {
-      alert("Mật khẩu không khớp!");
-      return;
+  const handleRegister = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      // Validate form
+      if (!formData.fullName || !formData.email || !formData.password) {
+        setError("Please fill all required fields");
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError("Passwords don't match");
+        return;
+      }
+
+      console.log("Registration attempt with:", {
+        email: formData.email,
+        password: "****",
+        fullName: formData.fullName,
+      });
+
+      // Call API to register user
+      const response = await api.auth.register({
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+      });
+
+      console.log("Registration response:", response);
+
+      // Check if registration was successful
+      if (response.status === 200 || response.status === 201) {
+        // Option 1: Auto login user
+        if (response?.data?.accessToken) {
+          await AsyncStorage.setItem("authToken", response.data.accessToken);
+          if (response.data.refreshToken) {
+            await AsyncStorage.setItem(
+              "refreshToken",
+              response.data.refreshToken
+            );
+          }
+          alert("Registration successful! You are now logged in.");
+          router.push("/");
+        }
+        // Option 2: Redirect to login
+        else {
+          alert("Registration successful! Please login.");
+          router.push("/login");
+        }
+      } else {
+        setError(response.message || "Registration failed. Please try again.");
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+
+      if (error?.response?.data?.message) {
+        setError(error.response.data.message);
+      } else if (error?.message) {
+        setError(error.message);
+      } else {
+        setError("Registration failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
-    // Thực hiện logic đăng ký (API call)
-    alert(`Đăng ký thành công: ${name}, ${email}`);
   };
 
   return (
-    <>
-      {/* <Link
-        href={"/login"}
-        className="bg-violet-600 h-[40px] w-[120px] border-0 rounded-xl flex justify-center items-center"
-      >
-        <View className="h-full w-full flex justify-center items-center">
-          <View className="flex flex-row items-center">
-            <AntDesign name="caretleft" size={24} color="white" />
-            <Text className="!text-white text-2xl font-bold ml-2">Login</Text>
-          </View>
-        </View>
-      </Link> */}
-      <View
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
-      >
-        <Text variant="headlineMedium" style={styles.title}>
-          Đăng ký
-        </Text>
-
-        <TextInput
-          label="Họ và tên"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-          mode="outlined"
-        />
-
-        <TextInput
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.input}
-          mode="outlined"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <TextInput
-          label="Mật khẩu"
-          value={password}
-          onChangeText={setPassword}
-          style={styles.input}
-          mode="outlined"
-          secureTextEntry
-        />
-
-        <TextInput
-          label="Nhập lại mật khẩu"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          style={styles.input}
-          mode="outlined"
-          secureTextEntry
-        />
-
-        <Button
-          className="!bg-violet-600"
-          mode="contained"
-          onPress={handleRegister}
-          style={styles.button}
-        >
-          Đăng ký
-        </Button>
-        <View className="flex justify-center items-center ">
-          <Link className="w-[100px] h-[40px] " href="/login">
-            <View className="flex justify-center items-center h-full w-full">
-              <Text className="!text-blue-500">Đăng Nhập</Text>
-            </View>
-          </Link>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Sign up to get started</Text>
       </View>
-    </>
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      <TextInput
+        label="Full Name"
+        value={formData.fullName}
+        onChangeText={(text) => setFormData({ ...formData, fullName: text })}
+        mode="outlined"
+        style={styles.input}
+        left={<TextInput.Icon icon="account" />}
+      />
+
+      <TextInput
+        label="Email"
+        value={formData.email}
+        onChangeText={(text) => setFormData({ ...formData, email: text })}
+        mode="outlined"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        style={styles.input}
+        left={<TextInput.Icon icon="email" />}
+      />
+
+      <TextInput
+        label="Password"
+        value={formData.password}
+        onChangeText={(text) => setFormData({ ...formData, password: text })}
+        mode="outlined"
+        secureTextEntry={!showPassword}
+        style={styles.input}
+        left={<TextInput.Icon icon="lock" />}
+        right={
+          <TextInput.Icon
+            icon={showPassword ? "eye-off" : "eye"}
+            onPress={() => setShowPassword(!showPassword)}
+          />
+        }
+      />
+
+      <TextInput
+        label="Confirm Password"
+        value={formData.confirmPassword}
+        onChangeText={(text) =>
+          setFormData({ ...formData, confirmPassword: text })
+        }
+        mode="outlined"
+        secureTextEntry={!showPassword}
+        style={styles.input}
+        left={<TextInput.Icon icon="lock-check" />}
+      />
+
+      <Button
+        mode="contained"
+        onPress={handleRegister}
+        loading={loading}
+        style={styles.button}
+        disabled={loading}
+      >
+        Sign Up
+      </Button>
+
+      <View style={styles.footer}>
+        <Text>Already have an account? </Text>
+        <Link href="/login">
+          <Text style={styles.signInText}>Sign In</Text>
+        </Link>
+      </View>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#fff",
     padding: 20,
-    justifyContent: "center",
+  },
+  header: {
+    marginTop: 60,
+    marginBottom: 40,
   },
   title: {
-    textAlign: "center",
-    marginBottom: 20,
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#666",
   },
   input: {
     marginBottom: 15,
   },
   button: {
+    padding: 5,
+    borderRadius: 10,
     marginTop: 10,
-    paddingVertical: 5,
+    backgroundColor: "#6200EE",
+  },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 30,
+  },
+  signInText: {
+    color: "#6200EE",
+    fontWeight: "bold",
+  },
+  errorText: {
+    color: "red",
+    marginBottom: 15,
+    textAlign: "center",
   },
 });
+
+export default RegisterScreen;

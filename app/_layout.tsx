@@ -58,7 +58,18 @@ export default function RootLayout() {
                 name="(blog-flow)"
                 options={{ headerShown: false }}
               />
-
+              <Stack.Screen
+                name="treatment/[id]"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="specialist/[id]"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="service/[id]"
+                options={{ headerShown: false }}
+              />
               {/* Other screens */}
             </Stack>
             <ChatSupportButton />

@@ -11,175 +11,107 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { api } from "@/lib/api/endpoints";
+import type {
+  Blog,
+  BlogResponse,
+  BlogResponsePaginationModel,
+} from "@/lib/types/api";
 
-// Thay thế phần MOCK_BLOGS cũ bằng phiên bản mới này
-const BLOG_DATA = [
-  {
-    id: "1",
-    title: "Top 5 Dịch Vụ Massage Được Yêu Thích Nhất 2024",
-    content:
-      "Khám phá 5 liệu trình massage được khách hàng đánh giá cao nhất tại Beauty Care. Từ massage Thụy Điển cho đến massage đá nóng, mỗi liệu trình đều mang đến những trải nghiệm thư giãn tuyệt vời và nhiều lợi ích sức khỏe...",
-    author: {
-      name: "Ngọc Linh",
-      avatar: "https://randomuser.me/api/portraits/women/1.jpg",
-    },
-    category: "Spa Review",
-  },
-  {
-    id: "2",
-    title: "Trải Nghiệm Facial Premium Với Công Nghệ Mới",
-    content:
-      "Công nghệ chăm sóc da mặt mới nhất tại Beauty Care với các thiết bị hiện đại và mỹ phẩm cao cấp. Quy trình 90 phút cho làn da căng mịn, rạng rỡ tức thì...",
-    author: {
-      name: "Thu Hà",
-      avatar: "https://randomuser.me/api/portraits/women/2.jpg",
-    },
-    category: "Beauty Review",
-  },
-  {
-    id: "3",
-    title: "Đánh Giá Chi Tiết Ứng Dụng Đặt Lịch Mới",
-    content:
-      "Trải nghiệm đặt lịch dễ dàng với ứng dụng mới của Beauty Care. Giao diện thân thiện, tính năng đa dạng và hệ thống tích điểm hấp dẫn...",
-    author: {
-      name: "Minh Anh",
-      avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-    },
-    category: "App Review",
-  },
-  {
-    id: "4",
-    title: "Liệu Trình Detox Body - Tái Tạo Làn Da",
-    content:
-      "Khám phá quy trình detox body toàn diện kéo dài 120 phút. Kết hợp tẩy da chết, massage và đắp mặt nạ thải độc, giúp làn da sáng mịn và săn chắc...",
-    author: {
-      name: "Thanh Thảo",
-      avatar: "https://randomuser.me/api/portraits/women/3.jpg",
-    },
-    category: "Service Review",
-  },
-  {
-    id: "5",
-    title: "Review Gói Spa Cặp Đôi Cao Cấp",
-    content:
-      "Trải nghiệm không gian lãng mạn và riêng tư với gói spa dành cho cặp đôi. Các liệu trình được thiết kế đặc biệt cho 2 người với những dịch vụ cao cấp...",
-    author: {
-      name: "Hoàng Nam",
-      avatar: "https://randomuser.me/api/portraits/men/2.jpg",
-    },
-    category: "Spa Review",
-  },
-  {
-    id: "6",
-    title: "Chăm Sóc Tóc Premium - Công Nghệ Mới",
-    content:
-      "Trải nghiệm dịch vụ chăm sóc tóc với công nghệ và sản phẩm nhập khẩu. Quy trình 7 bước giúp mái tóc chắc khỏe, suôn mượt...",
-    author: {
-      name: "Mai Hương",
-      avatar: "https://randomuser.me/api/portraits/women/4.jpg",
-    },
-    category: "Beauty Review",
-  },
-  {
-    id: "7",
-    title: "Liệu Trình Giảm Béo Hiệu Quả",
-    content:
-      "Chia sẻ kết quả sau 1 tháng trải nghiệm liệu trình giảm béo. Kết hợp công nghệ hiện đại và massage giảm mỡ chuyên sâu...",
-    author: {
-      name: "Thùy Linh",
-      avatar: "https://randomuser.me/api/portraits/women/5.jpg",
-    },
-    category: "Service Review",
-  },
-  {
-    id: "8",
-    title: "Nail Art Cao Cấp - Xu Hướng 2024",
-    content:
-      "Khám phá bộ sưu tập nail art mới nhất với các mẫu độc đáo và sang trọng. Sử dụng các sản phẩm cao cấp và kỹ thuật mới nhất...",
-    author: {
-      name: "Quỳnh Anh",
-      avatar: "https://randomuser.me/api/portraits/women/6.jpg",
-    },
-    category: "Beauty Review",
-  },
-  {
-    id: "9",
-    title: "Massage Chân Cho Dân Văn Phòng",
-    content:
-      "Giải pháp thư giãn tuyệt vời cho dân văn phòng với liệu trình massage chân 60 phút. Giúp giảm đau nhức và lưu thông máu...",
-    author: {
-      name: "Đức Minh",
-      avatar: "https://randomuser.me/api/portraits/men/3.jpg",
-    },
-    category: "Spa Review",
-  },
-  {
-    id: "10",
-    title: "Trải Nghiệm Gói VIP Member",
-    content:
-      "Đánh giá chi tiết các đặc quyền của gói thành viên VIP tại Beauty Care. Ưu đãi độc quyền và dịch vụ chăm sóc khách hàng 5 sao...",
-    author: {
-      name: "Hồng Nhung",
-      avatar: "https://randomuser.me/api/portraits/women/7.jpg",
-    },
-    category: "Service Review",
-  },
-];
-
-// Chuyển đổi BLOG_DATA thành MOCK_BLOGS với đầy đủ thông tin
-const MOCK_BLOGS = BLOG_DATA.map((blog) => ({
-  ...blog,
-  rating: 4 + Math.random() * 0.9, // Rating từ 4.0 đến 4.9
-  date: new Date(
-    Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
-  ).toLocaleDateString("vi-VN"), // Trong vòng 30 ngày
-  image: `https://source.unsplash.com/random/800x600?spa,beauty,massage&sig=${blog.id}`,
-  likes: 10 + Math.floor(Math.random() * 90), // 10-99 likes
-  comments: 5 + Math.floor(Math.random() * 45), // 5-49 comments
-}));
-
-// Giảm ITEMS_PER_PAGE xuống vì chỉ có 10 bài
+// Số bài viết mỗi trang
 const ITEMS_PER_PAGE = 5;
 
 const ReviewPage = () => {
   const router = useRouter();
-  const [blogs, setBlogs] = useState([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState("");
 
-  // Load blogs với pagination
-  const loadBlogs = useCallback((pageNum = 1, shouldRefresh = false) => {
+  // Hàm gọi API lấy danh sách blogs
+  const fetchBlogs = useCallback(async (pageNum = 1, shouldRefresh = false) => {
     setLoading(true);
-    // Giả lập API call
-    setTimeout(() => {
-      const startIndex = (pageNum - 1) * ITEMS_PER_PAGE;
-      const endIndex = startIndex + ITEMS_PER_PAGE;
-      const newBlogs = MOCK_BLOGS.slice(startIndex, endIndex);
+    setError("");
 
-      if (shouldRefresh) {
-        setBlogs(newBlogs);
-      } else {
-        setBlogs((prev) => [...prev, ...newBlogs]);
+    try {
+      const response = await api.blogs.getBlogs(pageNum, ITEMS_PER_PAGE);
+      // Kiểm tra nếu có data
+      if (!response || !response.data) {
+        setError("Không có dữ liệu từ API");
+        setBlogs([]);
+        setHasMore(false);
+        return;
       }
 
-      setHasMore(endIndex < MOCK_BLOGS.length);
+      const apiData = response.data as BlogResponsePaginationModel;
+
+      // Kiểm tra nếu không có items hoặc mảng rỗng
+      if (!apiData.items || apiData.items.length === 0) {
+        if (shouldRefresh) {
+          setBlogs([]);
+        }
+        setHasMore(false);
+        return;
+      }
+
+      // Format dữ liệu từ API để hiển thị trong UI - chỉ lấy dữ liệu thực tế
+      const formattedBlogs = apiData.items.map((item: BlogResponse) => ({
+        ...item,
+        id: item.blogId,
+        author: {
+          name: item.authorName || "Anonymous",
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            item.authorName || "Anonymous"
+          )}&background=random`,
+        },
+        date: new Date(item.createdAt).toLocaleDateString("vi-VN"),
+        image:
+          item.thumbnailUrl ||
+          `https://picsum.photos/seed/${item.blogId}/800/400`,
+        rating: 0, // Mặc định không có rating
+        likes: 0, // Mặc định không có likes
+        comments: 0, // Mặc định không có comments
+      }));
+
+      if (shouldRefresh) {
+        setBlogs(formattedBlogs);
+      } else {
+        setBlogs((prev) => [...prev, ...formattedBlogs]);
+      }
+
+      setHasMore(pageNum < apiData.totalPages);
+    } catch (error) {
+      console.error("Error fetching blogs:", error);
+      setError("Không thể tải bài viết. Vui lòng thử lại sau.");
+      if (shouldRefresh) {
+        setBlogs([]);
+      }
+      setHasMore(false);
+    } finally {
       setLoading(false);
       setRefreshing(false);
-    }, 1000);
+    }
   }, []);
 
   // Initial load
   useEffect(() => {
-    loadBlogs(1, true);
+    fetchBlogs(1, true);
   }, []);
+
+  // Refresh khi focus lại screen
+  useFocusEffect(
+    useCallback(() => {
+      fetchBlogs(1, true);
+    }, [])
+  );
 
   // Pull to refresh
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setPage(1);
-    loadBlogs(1, true);
+    fetchBlogs(1, true);
   }, []);
 
   // Load more
@@ -187,11 +119,15 @@ const ReviewPage = () => {
     if (!loading && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
-      loadBlogs(nextPage);
+      fetchBlogs(nextPage);
     }
   };
 
   const renderRatingStars = (rating: number) => {
+    if (rating <= 0) {
+      return <Text className="text-gray-400 text-xs">Chưa có đánh giá</Text>;
+    }
+
     return (
       <View style={{ flexDirection: "row", marginVertical: 4 }}>
         {Array.from({ length: 5 }).map((_, index) => (
@@ -231,7 +167,9 @@ const ReviewPage = () => {
           </View>
         </View>
 
-        <Text className="text-xs text-blue-500 mb-2">{item.category}</Text>
+        <Text className="text-xs text-blue-500 mb-2">
+          {item.tags || "Chung"}
+        </Text>
         <Text className="text-lg font-bold text-gray-900 mb-2">
           {item.title}
         </Text>
@@ -243,13 +181,15 @@ const ReviewPage = () => {
 
         <View className="flex-row justify-between items-center mt-3">
           <View className="flex-row items-center">
-            <Ionicons name="heart-outline" size={20} color="#666" />
-            <Text className="ml-1 text-gray-600">{item.likes}</Text>
+            <Ionicons name="eye-outline" size={20} color="#666" />
+            <Text className="ml-1 text-gray-600">{item.viewCount || 0}</Text>
           </View>
-          <View className="flex-row items-center">
-            <Ionicons name="chatbubble-outline" size={20} color="#666" />
-            <Text className="ml-1 text-gray-600">{item.comments}</Text>
-          </View>
+          {item.comments > 0 && (
+            <View className="flex-row items-center">
+              <Ionicons name="chatbubble-outline" size={20} color="#666" />
+              <Text className="ml-1 text-gray-600">{item.comments}</Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -272,11 +212,19 @@ const ReviewPage = () => {
         </Text>
       </TouchableOpacity>
 
+      {error ? (
+        <Text className="text-red-500 text-center m-2">{error}</Text>
+      ) : null}
+
       <FlatList
         data={blogs}
         renderItem={renderBlogItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={
+          blogs.length === 0
+            ? { flexGrow: 1, justifyContent: "center" }
+            : { padding: 16 }
+        }
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         refreshing={refreshing}
@@ -288,9 +236,25 @@ const ReviewPage = () => {
         }
         ListEmptyComponent={() =>
           !loading && (
-            <Text className="text-gray-500 text-center mt-6">
-              Chưa có đánh giá nào. Hãy là người đầu tiên!
-            </Text>
+            <View className="flex-1 justify-center items-center p-8">
+              <Ionicons
+                name="document-text-outline"
+                size={64}
+                color="#cccccc"
+              />
+              <Text className="text-gray-500 text-center mt-4 text-lg">
+                Không có bài blog nào
+              </Text>
+              <Text className="text-gray-400 text-center mt-2">
+                Hãy là người đầu tiên viết blog!
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(blog-flow)/new")}
+                className="mt-6 bg-blue-500 px-6 py-3 rounded-lg"
+              >
+                <Text className="text-white font-medium">Viết Blog Ngay</Text>
+              </TouchableOpacity>
+            </View>
           )
         }
       />

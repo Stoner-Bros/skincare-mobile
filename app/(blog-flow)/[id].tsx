@@ -6,10 +6,13 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { api } from "@/lib/api/endpoints";
+import type { Blog } from "@/lib/types/api";
 
 // Sử dụng lại BLOG_DATA từ trang index
 const BLOG_DATA = [
@@ -70,28 +73,57 @@ const MOCK_BLOGS = BLOG_DATA.map((blog) => ({
 const BlogDetailPage = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [blog, setBlog] = useState(null);
+  const [blog, setBlog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    loadBlogDetail();
+    fetchBlogDetail();
   }, [id]);
 
-  const loadBlogDetail = () => {
+  const fetchBlogDetail = async () => {
     setLoading(true);
     setError(false);
 
-    // Giả lập API call
-    setTimeout(() => {
+    try {
+      const response = await api.blogs.getBlog(id as string);
+      const blogData = response.data;
+
+      // Format dữ liệu từ API để hiển thị trong UI
+      setBlog({
+        ...blogData,
+        author: {
+          name: blogData.authorName || "Anonymous",
+          avatar:
+            blogData.authorAvatar ||
+            `https://randomuser.me/api/portraits/women/${Math.floor(
+              Math.random() * 10
+            )}.jpg`,
+          role: "Reviewer",
+        },
+        date: new Date(blogData.createdAt).toLocaleDateString("vi-VN"),
+        image:
+          blogData.image ||
+          `https://source.unsplash.com/random/800x600?spa,beauty,massage&sig=${blogData.id}`,
+        rating: blogData.rating || 4.5,
+        likes: blogData.likes || Math.floor(Math.random() * 50) + 10,
+        comments: blogData.comments || Math.floor(Math.random() * 20) + 5,
+        readTime: Math.floor(Math.random() * 5) + 3,
+      });
+    } catch (error) {
+      console.error("Error fetching blog detail:", error);
+      setError(true);
+      Alert.alert("Error", "Could not load blog details");
+
+      // Fallback to mock data on error
       const foundBlog = MOCK_BLOGS.find((blog) => blog.id === id);
       if (foundBlog) {
         setBlog(foundBlog);
-      } else {
-        setError(true);
+        setError(false);
       }
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const renderRatingStars = (rating: number) => {
@@ -119,33 +151,25 @@ const BlogDetailPage = () => {
     );
   }
 
-  // Nếu có lỗi hoặc không tìm thấy bài viết
-  if (error) {
+  // Nếu có lỗi
+  if (error || !blog) {
     return (
       <SafeAreaView className="flex-1 bg-white">
         <View className="px-4 py-3 border-b border-gray-200 flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="mr-4">
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
-          <Text className="text-xl font-bold">Không tìm thấy bài viết</Text>
+          <Text className="text-xl font-bold flex-1">Error</Text>
         </View>
-
         <View className="flex-1 justify-center items-center p-4">
-          <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
-          <Text className="text-xl font-bold mt-4 text-center">
-            Rất tiếc, bài viết không tồn tại
-          </Text>
-          <Text className="text-gray-600 mt-2 text-center mb-6">
-            Bài viết này có thể đã bị xóa hoặc không tồn tại
+          <Text className="text-lg text-gray-700 text-center mb-4">
+            Could not load blog details
           </Text>
           <TouchableOpacity
-            onPress={() => router.back()}
-            className="bg-blue-500 px-6 py-3 rounded-lg flex-row items-center"
+            onPress={() => fetchBlogDetail()}
+            className="bg-blue-500 px-4 py-2 rounded-lg"
           >
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-            <Text className="text-white font-semibold ml-2">
-              Quay lại trang chủ
-            </Text>
+            <Text className="text-white font-medium">Try Again</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -203,7 +227,7 @@ const BlogDetailPage = () => {
           </View>
 
           {/* Rating và tương tác */}
-          <View className="flex-row justify-between items-center mb-6 pb-4 border-b border-gray-200">
+          <View>
             {renderRatingStars(blog.rating)}
             <View className="flex-row items-center space-x-4">
               <View className="flex-row items-center">
@@ -222,7 +246,7 @@ const BlogDetailPage = () => {
 
           {/* Nội dung chính */}
           <Text
-            className="text-gray-700 leading-7 text-base"
+            className="text-gray-700 leading-7 text-base mt-4"
             style={{ lineHeight: 24 }}
           >
             {blog.content}
@@ -230,7 +254,10 @@ const BlogDetailPage = () => {
 
           {/* Footer */}
           <View className="mt-8 pt-4 border-t border-gray-200">
-            <TouchableOpacity className="bg-blue-500 p-4 rounded-lg flex-row justify-center items-center">
+            <TouchableOpacity
+              className="bg-blue-500 p-4 rounded-lg flex-row justify-center items-center"
+              onPress={() => router.push("/")}
+            >
               <Text className="text-white font-semibold text-center">
                 Đặt Lịch Ngay
               </Text>

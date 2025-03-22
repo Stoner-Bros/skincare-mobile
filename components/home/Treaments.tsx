@@ -10,13 +10,15 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { serviceApi } from "../../lib/api/endpoints";
-import type { Service } from "../../lib/types/api";
+
+import type { Treatment } from "../../lib/types/api";
+import { api } from "../../lib/api/endpoints";
 
 export default function PopularTreatments() {
   const router = useRouter();
-  const [treatments, setTreatments] = useState<Service[]>([]);
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadTreatments();
@@ -24,14 +26,27 @@ export default function PopularTreatments() {
 
   const loadTreatments = async () => {
     try {
-      const data = await serviceApi.getServices();
-      console.log("Raw treatments data:", data);
-      // Lấy mảng treatments từ response
-      const treatmentsData = data[0]?.treatments || [];
-      console.log("Processed treatments data:", treatmentsData);
-      setTreatments(treatmentsData);
+      setLoading(true);
+      setError(null);
+
+      const response = await api.treatments.getTreatments();
+
+      // Kiểm tra cấu trúc response và xử lý phù hợp
+      if (response && response.data) {
+        const treatmentsData = Array.isArray(response.data)
+          ? response.data
+          : response.data.items || [];
+
+        setTreatments(treatmentsData);
+      } else {
+        // Nếu không có data hoặc cấu trúc không đúng
+        setTreatments([]);
+        setError("No treatments found");
+      }
     } catch (error) {
       console.error("Error loading treatments:", error);
+      setError("Failed to load treatments");
+      setTreatments([]);
     } finally {
       setLoading(false);
     }
@@ -41,6 +56,20 @@ export default function PopularTreatments() {
     return (
       <View style={[styles.section, styles.loadingContainer]}>
         <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (error || treatments.length === 0) {
+    return (
+      <View style={[styles.section, styles.errorContainer]}>
+        <Text style={styles.sectionTitle}>Popular Treatments</Text>
+        <Text style={styles.errorText}>
+          {error || "No treatments available"}
+        </Text>
+        <Pressable style={styles.retryButton} onPress={loadTreatments}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </Pressable>
       </View>
     );
   }
@@ -83,6 +112,27 @@ const styles = StyleSheet.create({
   loadingContainer: {
     padding: 20,
     alignItems: "center",
+  },
+  errorContainer: {
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#FF3B30",
+    marginBottom: 10,
+  },
+  retryButton: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
   },
   sectionTitle: {
     fontSize: 20,

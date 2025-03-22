@@ -1,3 +1,4 @@
+import React from "react";
 import {
   View,
   Text,
@@ -10,7 +11,7 @@ import {
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { specialistApi } from "../../lib/api/endpoints";
+import { api } from "../../lib/api/endpoints";
 import type { Specialist } from "../../lib/types/api";
 
 export default function SpecialistPage() {
@@ -25,7 +26,7 @@ export default function SpecialistPage() {
 
   const loadSpecialist = async () => {
     try {
-      const data = await specialistApi.getSpecialist(id as string);
+      const data = await api.specialists.getSpecialist(id as string);
       setSpecialist(data);
     } catch (error) {
       console.error("Error loading specialist:", error);
@@ -81,24 +82,50 @@ export default function SpecialistPage() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <Text style={styles.bio}>{specialist.bio}</Text>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Specialties</Text>
           <View style={styles.specialtiesContainer}>
             {specialist.specialties.map((specialty) => (
-              <View key={specialty} style={styles.dayChip}>
-                <Text style={styles.dayText}>{specialty}</Text>
+              <View key={specialty} style={styles.specialtyChip}>
+                <Text style={styles.specialtyText}>{specialty}</Text>
               </View>
             ))}
           </View>
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Languages</Text>
+          <View style={styles.languagesContainer}>
+            {specialist.languages.map((language) => (
+              <View key={language} style={styles.languageChip}>
+                <Text style={styles.languageText}>{language}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Certifications</Text>
+          {specialist.certifications.map((cert) => (
+            <View key={cert} style={styles.certificationItem}>
+              <Ionicons name="shield-checkmark" size={20} color="#2ecc71" />
+              <Text style={styles.certificationText}>{cert}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Availability</Text>
           <View style={styles.availabilityContainer}>
-            {Object.keys(specialist.availability).map((date) => (
+            {Object.entries(specialist.availability).map(([date, slots]) => (
               <View key={date} style={styles.dateContainer}>
                 <Text style={styles.dateText}>{date}</Text>
                 <View style={styles.timeSlots}>
-                  {specialist.availability[date].map((time) => (
+                  {slots.map((time) => (
                     <Text key={time} style={styles.timeSlot}>
                       {time}
                     </Text>
@@ -111,10 +138,12 @@ export default function SpecialistPage() {
 
         <TouchableOpacity
           style={styles.bookButton}
-          onPress={() => router.push(`/booking/new?specialistId=${id}`)}
+          onPress={() => router.push(`/(booking-flow)/new?specialistId=${id}`)}
         >
           <Text style={styles.bookButtonText}>Book Appointment</Text>
         </TouchableOpacity>
+
+        <View style={styles.spacer} />
       </ScrollView>
     </>
   );
@@ -180,6 +209,41 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
+  specialtyChip: {
+    backgroundColor: "#f1f1f1",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  specialtyText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  languagesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  languageChip: {
+    backgroundColor: "#f1f1f1",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  languageText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  certificationItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  certificationText: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginLeft: 8,
+  },
   availabilityContainer: {
     gap: 12,
   },
@@ -203,16 +267,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     fontSize: 14,
   },
-  dayChip: {
-    backgroundColor: "#f1f1f1",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  dayText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
   bookButton: {
     margin: 16,
     backgroundColor: "#2ecc71",
@@ -224,5 +278,8 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  spacer: {
+    height: 16,
   },
 });

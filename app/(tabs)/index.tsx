@@ -1,5 +1,3 @@
-import Categories from "@/components/home/Categogies";
-import FeaturedSpas from "@/components/home/FeaturedSpas";
 import Header from "@/components/home/Header";
 
 import SearchBar from "@/components/home/SearchBar";
@@ -12,7 +10,7 @@ import { View, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SpaDetail from "../spa/[id]";
 import ChatSupportButton from "@/components/common/ChatSupportButton";
-
+import Services from "@/components/home/Services";
 const App = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -24,9 +22,9 @@ const App = () => {
         <ScrollView showsVerticalScrollIndicator={false}>
           <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
 
-          <FeaturedSpas />
-          <Categories />
+          {/* <Categories /> */}
           <PopularTreatments />
+          <Services limit={4} />
           <Specialists />
           <SpaDetail />
         </ScrollView>
