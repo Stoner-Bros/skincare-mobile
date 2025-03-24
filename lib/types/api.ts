@@ -280,3 +280,79 @@ export interface ServiceResponsePaginationModel {
   totalRecords: number;
   totalPages: number;
 }
+
+// SkinTherapist Types
+export interface SkinTherapistCreationRequest {
+  email: string;
+  password: string;
+  fullName: string;
+  specialization: string;
+  experience?: string;
+  introduction?: string;
+  bio?: string;
+}
+
+export interface SkinTherapistUpdateRequest {
+  fullName?: string;
+  avatar?: string;
+  phone?: string;
+  address?: string;
+  dob?: string;
+  otherInfo?: string;
+  specialization?: string;
+  experience?: string;
+  introduction?: string;
+  bio?: string;
+  isAvailable?: boolean;
+}
+
+export interface SkinTherapistResponse {
+  accountId: number;
+  specialization: string;
+  experience?: string;
+  introduction?: string;
+  bio?: string;
+  rating: number;
+  isAvailable: boolean;
+  account: {
+    accountId: number;
+    email: string;
+    createdAt: string;
+    updateAt: string;
+    role: string;
+    isDeleted: boolean;
+    accountInfo: {
+      accountId: number;
+      fullName: string;
+      avatar?: string;
+      phone?: string;
+      address?: string;
+      dob?: string;
+      otherInfo?: string;
+    }
+  }
+}
+
+export interface SkinTherapistResponsePaginationModel {
+  items: SkinTherapistResponse[];
+  pageNumber: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages: number;
+}
+
+// Định nghĩa kiểu đơn giản hơn cho UI
+export interface SpecialistUI {
+  id: number;
+  fullName: string;
+  specialization: string;
+  avatar?: string;
+  experience?: string;
+  bio?: string;
+  rating: number;
+  isAvailable: boolean;
+  introduction?: string;
+  email: string;
+  phone?: string;
+  address?: string;
+}

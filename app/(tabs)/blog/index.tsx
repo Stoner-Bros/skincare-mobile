@@ -56,10 +56,11 @@ const ReviewPage = () => {
         return;
       }
 
-      // Format dữ liệu từ API để hiển thị trong UI - chỉ lấy dữ liệu thực tế
-      const formattedBlogs = apiData.items.map((item: BlogResponse) => ({
+      // Format dữ liệu từ API để hiển thị trong UI
+      const formattedBlogs = apiData.items.map((item: BlogResponse, index) => ({
         ...item,
-        id: item.blogId,
+        // Sử dụng uniqueId nếu có, nếu không tạo mới id với tính duy nhất
+        id: item.uniqueId || `${item.blogId}-${Date.now()}-${index}`,
         author: {
           name: item.authorName || "Anonymous",
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -70,15 +71,20 @@ const ReviewPage = () => {
         image:
           item.thumbnailUrl ||
           `https://picsum.photos/seed/${item.blogId}/800/400`,
-        rating: 0, // Mặc định không có rating
-        likes: 0, // Mặc định không có likes
-        comments: 0, // Mặc định không có comments
+        rating: 0,
+        likes: 0,
+        comments: 0,
       }));
 
       if (shouldRefresh) {
         setBlogs(formattedBlogs);
       } else {
-        setBlogs((prev) => [...prev, ...formattedBlogs]);
+        // Lọc ra các bài viết chưa có trong danh sách
+        const existingIds = new Set(blogs.map((blog) => blog.id));
+        const newBlogs = formattedBlogs.filter(
+          (blog) => !existingIds.has(blog.id)
+        );
+        setBlogs((prev) => [...prev, ...newBlogs]);
       }
 
       setHasMore(pageNum < apiData.totalPages);
@@ -123,29 +129,12 @@ const ReviewPage = () => {
     }
   };
 
-  const renderRatingStars = (rating: number) => {
-    if (rating <= 0) {
-      return <Text className="text-gray-400 text-xs">Chưa có đánh giá</Text>;
-    }
-
-    return (
-      <View style={{ flexDirection: "row", marginVertical: 4 }}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Ionicons
-            key={index}
-            name={index < Math.floor(rating) ? "star" : "star-outline"}
-            size={16}
-            color="#FFD700"
-          />
-        ))}
-        <Text className="ml-2 text-gray-600">({rating.toFixed(1)})</Text>
-      </View>
-    );
-  };
-
   const renderBlogItem = ({ item }) => (
     <TouchableOpacity
-      onPress={() => router.push(`/(blog-flow)/${item.id}`)}
+      onPress={() => {
+        const actualBlogId = item.blogId || item.id.toString().split("-")[0];
+        router.push(`/(blog-flow)/${actualBlogId}`);
+      }}
       className="bg-white rounded-lg shadow-sm mb-4 overflow-hidden"
     >
       <Image
@@ -177,7 +166,7 @@ const ReviewPage = () => {
           {item.content}
         </Text>
 
-        {renderRatingStars(item.rating)}
+        {renderStarsWithUniqueKey(item.rating, item.id)}
 
         <View className="flex-row justify-between items-center mt-3">
           <View className="flex-row items-center">
@@ -194,6 +183,35 @@ const ReviewPage = () => {
       </View>
     </TouchableOpacity>
   );
+
+  // Và thay đổi keyExtractor để đảm bảo tính duy nhất
+  const keyExtractor = (item) => {
+    // Thêm timestamp hiện tại để đảm bảo key luôn duy nhất mỗi lần render
+    return `blog-item-${item.id || item.blogId}-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+  };
+
+  // Sửa lại hàm renderStarsWithUniqueKey để đảm bảo tính duy nhất của key
+  const renderStarsWithUniqueKey = (rating, itemId) => {
+    if (rating <= 0) {
+      return <Text className="text-gray-400 text-xs">Chưa có đánh giá</Text>;
+    }
+
+    return (
+      <View style={{ flexDirection: "row", marginVertical: 4 }}>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Ionicons
+            key={`star-rating-${itemId}-${index}`} // Thêm tiền tố tránh trùng với key khác
+            name={index < Math.floor(rating) ? "star" : "star-outline"}
+            size={16}
+            color="#FFD700"
+          />
+        ))}
+        <Text className="ml-2 text-gray-600">({rating.toFixed(1)})</Text>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
@@ -219,7 +237,7 @@ const ReviewPage = () => {
       <FlatList
         data={blogs}
         renderItem={renderBlogItem}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={keyExtractor}
         contentContainerStyle={
           blogs.length === 0
             ? { flexGrow: 1, justifyContent: "center" }
