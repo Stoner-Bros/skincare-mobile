@@ -10,7 +10,9 @@ import type {
   ServiceCreationRequest,
   ServiceUpdateRequest,
   SkinTherapistCreationRequest,
-  SkinTherapistUpdateRequest
+  SkinTherapistUpdateRequest,
+  SkinTestAnswerSubmission,
+  SkinTestAnswerRequest
 } from '../types/api';
 import { apiClient } from './config';
 
@@ -201,7 +203,7 @@ export const blogApi = {
       
       // Đảm bảo mỗi item có một id duy nhất
       if (response.data && response.data.items && Array.isArray(response.data.items)) {
-        response.data.items = response.data.items.map((item, index) => ({
+        response.data.items = response.data.items.map((item: Blog, index: number) => ({
           ...item,
           // Thêm timestamp vào blogId để đảm bảo tính duy nhất
           uniqueId: `${item.blogId}-${Date.now()}-${index}`
@@ -265,15 +267,40 @@ export const blogApi = {
 // Treatment API endpoints
 export const treatmentApi = {
   // Get all treatments
-  getTreatments: async () => {
-    const response = await apiClient.get('/api/treatments');
-    return response.data;
+  getTreatments: async (pageNumber = 1, pageSize = 10) => {
+    try {
+      const response = await apiClient.get('/api/treatments', {
+        params: { pageNumber, pageSize }
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error fetching treatments:", {
+        status: error.response?.status,
+        message: error.message,
+        data: error.response?.data
+      });
+      throw error;
+    }
   },
   
   // Get treatment by id
-  getTreatment: async (id: string | number) => {
-    const response = await apiClient.get(`/api/treatments/${id}`);
-    return response.data;
+  getTreatment: async (id: number) => {
+    try {
+      // Đảm bảo id là số
+      if (typeof id !== 'number') {
+        throw new Error('Treatment ID must be a number');
+      }
+      
+      const response = await apiClient.get(`/api/treatments/${id}`);
+      return response;
+    } catch (error: any) {
+      console.error("Error in getTreatment:", {
+        id,
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message
+      });
+      throw error;
+    }
   },
   
   // Create treatment
@@ -312,6 +339,155 @@ export const uploadApi = {
     const response = await apiClient.get(`/api/upload/${fileName}`);
     return response.data;
   },
+
+  // Thêm method để lấy URL file
+  getFileUrl: (fileName: string) => {
+    return `${apiClient.defaults.baseURL}/api/upload/${fileName}`;
+  }
+};
+
+// Skin Test API endpoints
+export const skinTestApi = {
+  // Lấy tất cả skin tests
+  getSkinTests: async () => {
+    const response = await apiClient.get('/api/skin-tests');
+    return response.data;
+  },
+
+  // Lấy một skin test theo ID
+  getSkinTest: async (id: number) => {
+    const response = await apiClient.get(`/api/skin-tests/${id}`);
+    return response.data;
+  },
+
+  // Lấy câu hỏi theo skin test ID
+  getQuestionsBySkinTest: async (skinTestId: number) => {
+    const response = await apiClient.get(`/api/skin-test-questions/by-skin-test/${skinTestId}`);
+    return response.data;
+  },
+
+  // Lấy một câu hỏi cụ thể
+  getQuestion: async (id: number) => {
+    const response = await apiClient.get(`/api/skin-test-questions/${id}`);
+    return response.data;
+  },
+
+  // Submit answers và trả về answerId
+  submitAnswers: async (data: SkinTestAnswerRequest) => {
+    try {
+      console.log('Submitting with data:', data);
+      const response = await apiClient.post('/api/skin-test-answers', {
+        skinTestId: data.skinTestId,
+        customerId: data.customerId || null,
+        guestId: data.guestId,
+        answers: data.answers // ["A", "B", "C", "D"]
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Submit response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Submit error:', error);
+      throw error;
+    }
+  },
+
+  // Lấy kết quả theo answerId
+  getResult: async (answerId: number) => {
+    try {
+      const response = await apiClient.get(`/api/skin-test-results/${answerId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get result error:', error);
+      throw error;
+    }
+  },
+
+  // Lấy kết quả
+  getResults: async () => {
+    const response = await apiClient.get('/api/skin-test-results');
+    return response.data;
+  }
+};
+
+// Skin Test Question API endpoints
+export const skinTestQuestionApi = {
+  // Lấy tất cả câu hỏi
+  getQuestions: async () => {
+    try {
+      const response = await apiClient.get('/api/skin-test-questions');
+      console.log('Questions response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting questions:', error);
+      throw error;
+    }
+  },
+
+  // Lấy câu hỏi theo ID
+  getQuestion: async (id: number) => {
+    try {
+      const response = await apiClient.get(`/api/skin-test-questions/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error getting question ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Lấy câu hỏi theo skin test ID
+  getQuestionsBySkinTest: async (skinTestId: number) => {
+    try {
+      const response = await apiClient.get(`/api/skin-test-questions/by-skin-test/${skinTestId}`);
+      console.log('Questions by skin test:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error getting questions for skin test ${skinTestId}:`, error);
+      throw error;
+    }
+  }
+};
+
+// Time Slots API endpoints
+export const timeSlotsApi = {
+  // Lấy tất cả time slots
+  getTimeSlots: async () => {
+    try {
+      console.log('Fetching time slots...');
+      const response = await apiClient.get('/api/timeslots');
+      console.log('Time slots response:', response.data);
+      return response;
+    } catch (error) {
+      console.error('Error fetching time slots:', error);
+      throw error;
+    }
+  },
+  
+  // Lấy time slot theo ID
+  getTimeSlot: async (id: number) => {
+    try {
+      console.log(`Fetching time slot with id: ${id}`);
+      const response = await apiClient.get(`/api/timeslots/${id}`);
+      console.log('Time slot response:', response.data);
+      return response;
+    } catch (error) {
+      console.error(`Error fetching time slot ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Kiểm tra tính khả dụng của time slot
+  checkAvailability: async (id: number) => {
+    try {
+      const response = await apiClient.get(`/api/timeslots/${id}`);
+      return response.data.isAvailable;
+    } catch (error) {
+      console.error(`Error checking time slot availability ${id}:`, error);
+      throw error;
+    }
+  }
 };
 
 // API chung để sử dụng trong ứng dụng
@@ -323,5 +499,8 @@ export const api = {
   bookings: bookingApi,
   blogs: blogApi,
   treatments: treatmentApi,
-  upload: uploadApi
+  upload: uploadApi,
+  skinTest: skinTestApi,
+  skinTestQuestions: skinTestQuestionApi,
+  timeSlots: timeSlotsApi,
 };

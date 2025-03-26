@@ -49,14 +49,16 @@ const Services = ({ limit = 4 }: ServicesProps) => {
       const serviceData = apiData.items.slice(0, limit);
 
       // Sử dụng URL từ API upload để hiển thị hình ảnh
-      const formattedServiceData = serviceData.map((service) => ({
-        ...service,
-        serviceThumbnailUrl: service.serviceThumbnailUrl
-          ? service.serviceThumbnailUrl.startsWith("http")
-            ? service.serviceThumbnailUrl
-            : `https://skincare-api.azurewebsites.net/api/upload/${service.serviceThumbnailUrl}`
-          : `https://picsum.photos/seed/${service.serviceId}/300/200`,
-      }));
+      const formattedServiceData = serviceData.map(
+        (service: ServiceResponse) => ({
+          ...service,
+          serviceThumbnailUrl: service.serviceThumbnailUrl
+            ? service.serviceThumbnailUrl.startsWith("http")
+              ? service.serviceThumbnailUrl
+              : `https://skincare-api.azurewebsites.net/api/upload/${service.serviceThumbnailUrl}`
+            : `https://picsum.photos/seed/${service.serviceId}/300/200`,
+        })
+      );
 
       setServices(formattedServiceData);
     } catch (error) {

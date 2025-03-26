@@ -213,13 +213,14 @@ export interface PaginatedBlogResponse {
 
 // Treatment Types
 export interface Treatment {
-  id: string | number;
-  name: string;
+  treatmentId: number;
+  serviceId: number;
+  treatmentName: string;
+  treatmentThumbnailUrl: string;
   description: string;
-  image: string;
   duration: number;
   price: number;
-  category?: string;
+  isAvailable: boolean;
 }
 
 export interface TreatmentCreationRequest {
@@ -241,14 +242,11 @@ export interface TreatmentUpdateRequest {
 }
 
 export interface TreatmentResponse {
-  // Các trường response từ API
-  id: string | number;
-  name: string;
-  description: string;
-  image: string;
-  duration: number;
-  price: number;
-  category?: string;
+  status: number;
+  message: string;
+  data: {
+    items: Treatment[];
+  };
 }
 
 // Service types
@@ -355,4 +353,89 @@ export interface SpecialistUI {
   email: string;
   phone?: string;
   address?: string;
+}
+
+// Cập nhật các interface cho Skin Test
+export interface SkinTestQuestion {
+  skinTestQuestionId: number;
+  questionText: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+}
+
+export interface SkinTest {
+  skinTestId: number;
+  testName: string;
+  description: string;
+  createdAt: string;
+  skinTestQuestions: SkinTestQuestion[];
+}
+
+export interface SkinTestAnswerRequest {
+  skinTestId: number;
+  customerId?: number | null;
+  guestId: number;
+  answers: string[]; // ["A", "B", "C", "D"]
+}
+
+export interface SkinTestResult {
+  resultId: number;
+  customerId?: number;
+  guestId?: number;
+  skinTestAnswerId: number;
+  result: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SkinCareProduct {
+  id: number;
+  name: string;
+  brand: string;
+  description: string;
+  price: number;
+  rating: number;
+  reviews: number;
+  image: string;
+  skinTypes: string[];
+  ingredients: string[];
+  benefits: string[];
+  howToUse: string;
+}
+
+export interface SkinTestAnswerSubmission {
+  userId: string;
+  answers: {
+    questionId: number;
+    optionId: number;
+  }[];
+}
+
+export interface SkinTestAnswerResponse {
+  skinTestAnswerId: number;
+  message?: string;
+  status?: number;
+}
+
+export interface SkinTestResultResponse {
+  resultId: number;
+  result: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimeSlot {
+  timeSlotId: number;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+  notes?: string;
+}
+
+export interface TimeSlotsResponse {
+  status: number;
+  message: string;
+  data: TimeSlot[];
 }

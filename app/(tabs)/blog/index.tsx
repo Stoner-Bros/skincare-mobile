@@ -59,7 +59,6 @@ const ReviewPage = () => {
       // Format dữ liệu từ API để hiển thị trong UI
       const formattedBlogs = apiData.items.map((item: BlogResponse, index) => ({
         ...item,
-        // Sử dụng uniqueId nếu có, nếu không tạo mới id với tính duy nhất
         id: item.uniqueId || `${item.blogId}-${Date.now()}-${index}`,
         author: {
           name: item.authorName || "Anonymous",
@@ -68,9 +67,9 @@ const ReviewPage = () => {
           )}&background=random`,
         },
         date: new Date(item.createdAt).toLocaleDateString("vi-VN"),
-        image:
-          item.thumbnailUrl ||
-          `https://picsum.photos/seed/${item.blogId}/800/400`,
+        image: item.thumbnailUrl
+          ? `https://skincare-api.azurewebsites.net/api/upload/${item.thumbnailUrl}`
+          : `https://picsum.photos/seed/${item.blogId}/800/400`,
         rating: 0,
         likes: 0,
         comments: 0,
@@ -129,7 +128,7 @@ const ReviewPage = () => {
     }
   };
 
-  const renderBlogItem = ({ item }) => (
+  const renderBlogItem = ({ item }: { item: Blog }) => (
     <TouchableOpacity
       onPress={() => {
         const actualBlogId = item.blogId || item.id.toString().split("-")[0];
@@ -166,7 +165,7 @@ const ReviewPage = () => {
           {item.content}
         </Text>
 
-        {renderStarsWithUniqueKey(item.rating, item.id)}
+        {renderStarsWithUniqueKey(item.rating, item.id.toString())}
 
         <View className="flex-row justify-between items-center mt-3">
           <View className="flex-row items-center">
@@ -185,7 +184,7 @@ const ReviewPage = () => {
   );
 
   // Và thay đổi keyExtractor để đảm bảo tính duy nhất
-  const keyExtractor = (item) => {
+  const keyExtractor = (item: Blog) => {
     // Thêm timestamp hiện tại để đảm bảo key luôn duy nhất mỗi lần render
     return `blog-item-${item.id || item.blogId}-${Date.now()}-${Math.random()
       .toString(36)
@@ -193,7 +192,7 @@ const ReviewPage = () => {
   };
 
   // Sửa lại hàm renderStarsWithUniqueKey để đảm bảo tính duy nhất của key
-  const renderStarsWithUniqueKey = (rating, itemId) => {
+  const renderStarsWithUniqueKey = (rating: number, itemId: string) => {
     if (rating <= 0) {
       return <Text className="text-gray-400 text-xs">Chưa có đánh giá</Text>;
     }

@@ -1,19 +1,32 @@
-import { Button, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import React from "react";
-import { Link } from "expo-router";
+import { ScrollView } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
 import SkinTest from "@/components/skintest/SkinTest";
 import SkinCareProducts from "@/components/skintest/SkinCareProduct";
-import { ScrollView } from "react-native-gesture-handler";
 
 const SkinTestScreen = () => {
   return (
-    <ScrollView>
-      <SkinTest />
-      <SkinCareProducts />
-    </ScrollView>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <SkinTest />
+        <SkinCareProducts />
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 export default SkinTestScreen;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+});

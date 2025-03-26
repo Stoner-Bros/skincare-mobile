@@ -14,7 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "@/lib/api/endpoints";
-import type { ServiceResponse } from "@/lib/types/api";
+import type { ServiceResponse, TimeSlot } from "@/lib/types/api";
+import TimeSlots from "@/components/common/TimeSlots";
 
 const ServiceDetail = () => {
   const { id } = useLocalSearchParams();
@@ -22,6 +23,9 @@ const ServiceDetail = () => {
   const [service, setService] = useState<ServiceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(
+    null
+  );
 
   useEffect(() => {
     fetchServiceDetail();
@@ -244,6 +248,13 @@ const ServiceDetail = () => {
             <Ionicons name="chevron-forward" size={16} color="#3b82f6" />
           </TouchableOpacity>
         </View>
+
+        <Text className="text-lg font-semibold mb-2">Khung Giờ Có Sẵn</Text>
+        <TimeSlots
+          selectedSlot={selectedTimeSlot}
+          serviceId={service.serviceId}
+          onSelectTimeSlot={(slot) => setSelectedTimeSlot(slot)}
+        />
       </ScrollView>
 
       {/* Button đặt lịch */}

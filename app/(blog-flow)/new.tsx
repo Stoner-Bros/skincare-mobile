@@ -1,166 +1,231 @@
 import { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useRouter } from "expo-router";
-import { TextInput, Button } from "react-native-paper";
+import { TextInput } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import { api } from "@/lib/api/endpoints";
 import type { BlogCreationRequest } from "@/lib/types/api";
+import { UIImagePickerPresentationStyle } from "expo-image-picker";
 
-const categories = [
-  "Spa Review",
-  "Beauty Review",
-  "Service Review",
-  "Product Review",
-  "App Review",
-];
-
-const NewReview = () => {
+const NewBlog = () => {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [category, setCategory] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const handleImagePick = async () => {
+    try {
+      // Request permissions first
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Please allow access to your photo library to upload images.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      // Launch image picker with correct options using new MediaType
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+        presentationStyle: UIImagePickerPresentationStyle.FULL_SCREEN,
+      });
+
+      console.log("ImagePicker Result:", result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedImage = result.assets[0];
+
+        // Create form data
+        const formData = new FormData();
+        formData.append("file", {
+          uri: selectedImage.uri,
+          type: selectedImage.mimeType || "image/jpeg",
+          name: selectedImage.fileName || `image-${Date.now()}.jpg`,
+        } as any);
+
+        try {
+          setLoading(true);
+          console.log("Uploading image...", formData);
+
+          const uploadResponse = await api.upload.uploadFile(formData);
+          console.log("Upload response:", uploadResponse);
+
+          if (uploadResponse?.data?.fileName) {
+            // Lấy file thông qua API endpoint
+            const fileResponse = await api.upload.getFile(
+              uploadResponse.data.fileName
+            );
+            setThumbnailUrl(uploadResponse.data.fileName); // Lưu fileName thay vì full URL
+          } else {
+            throw new Error("No file name received in response");
+          }
+        } catch (uploadError) {
+          console.error("Upload error:", uploadError);
+          Alert.alert(
+            "Upload Failed",
+            "Failed to upload image. Please try again."
+          );
+        } finally {
+          setLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error("ImagePicker error:", error);
+      Alert.alert("Error", "Failed to select image. Please try again.");
+    }
+  };
+
   const handleSubmit = async () => {
-    // Validate form
     if (!title.trim()) {
-      Alert.alert("Validation Error", "Vui lòng nhập tiêu đề");
+      Alert.alert("Error", "Please enter a title");
       return;
     }
 
     if (!content.trim()) {
-      Alert.alert("Validation Error", "Vui lòng nhập nội dung");
-      return;
-    }
-
-    if (!category) {
-      Alert.alert("Validation Error", "Vui lòng chọn danh mục");
+      Alert.alert("Error", "Please enter content");
       return;
     }
 
     try {
       setLoading(true);
-
-      // Kiểm tra token xác thực
-      const token = await AsyncStorage.getItem("authToken");
-      if (!token) {
-        Alert.alert("Yêu cầu đăng nhập", "Bạn cần đăng nhập để đăng bài viết", [
-          { text: "Hủy", style: "cancel" },
-          { text: "Đăng nhập", onPress: () => router.push("/login") },
-        ]);
-        return;
-      }
-
-      // Tạo dữ liệu blog mới
       const blogData: BlogCreationRequest = {
-        title,
-        content,
-        category,
+        title: title.trim(),
+        content: content.trim(),
+        thumbnailUrl: thumbnailUrl || undefined,
       };
 
-      // Gọi API tạo blog mới
       const response = await api.blogs.createBlog(blogData);
-
-      Alert.alert("Thành công", "Bài viết của bạn đã được tạo thành công", [
+      Alert.alert("Success", "Your blog has been created successfully", [
         { text: "OK", onPress: () => router.back() },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating blog:", error);
-
-      // Xử lý lỗi
-      if (error.response?.status === 401) {
-        Alert.alert("Lỗi", "Bạn cần đăng nhập lại để thực hiện thao tác này");
-      } else {
-        Alert.alert(
-          "Lỗi",
-          error.response?.data?.message ||
-            "Không thể tạo bài viết. Vui lòng thử lại sau."
-        );
-      }
-
-      // Lưu tạm thời vào Local Storage để không mất dữ liệu
-      try {
-        const reviewData = {
-          title,
-          content,
-          category,
-          timestamp: new Date().toISOString(),
-        };
-        await AsyncStorage.setItem("draft_review", JSON.stringify(reviewData));
-      } catch (err) {
-        console.error("Error saving draft:", err);
-      }
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to create blog"
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View className="flex-1 bg-white">
-      <View className="flex-row items-center p-4 border-b border-gray-200">
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text className="text-lg font-bold ml-4">Tạo Bài Viết Mới</Text>
-      </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-white"
+    >
+      <View className="flex-1">
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="close" size={24} color="#666" />
+          </TouchableOpacity>
+          <Text className="text-lg font-semibold">Create New Blog</Text>
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={loading}
+            className={`px-4 py-1.5 rounded-full ${
+              loading ? "bg-gray-100" : "bg-purple-600"
+            }`}
+          >
+            <Text className={loading ? "text-gray-400" : "text-white"}>
+              {loading ? "Posting..." : "Post"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView className="p-4">
-        <TextInput
-          label="Tiêu đề"
-          value={title}
-          onChangeText={setTitle}
-          mode="outlined"
-          className="mb-4"
-        />
+        <ScrollView className="flex-1 p-4">
+          {/* Title Input */}
+          <TextInput
+            placeholder="Enter your title"
+            value={title}
+            onChangeText={setTitle}
+            mode="flat"
+            className="mb-4"
+            style={{
+              backgroundColor: "transparent",
+              fontSize: 24,
+              paddingHorizontal: 0,
+            }}
+            underlineColor="transparent"
+          />
 
-        <Text className="text-gray-700 mb-2">Chọn danh mục:</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="mb-4"
-        >
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              className={`mr-2 px-4 py-2 rounded-full ${
-                category === cat ? "bg-blue-500" : "bg-gray-200"
-              }`}
-              onPress={() => setCategory(cat)}
-            >
-              <Text
-                className={`${
-                  category === cat ? "text-white" : "text-gray-800"
-                }`}
-              >
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {/* Image Picker */}
+          <TouchableOpacity onPress={handleImagePick} className="mb-4">
+            {thumbnailUrl ? (
+              <View className="relative">
+                <Image
+                  source={{
+                    uri: `https://skincare-api.azurewebsites.net/api/upload/${thumbnailUrl}`,
+                  }}
+                  className="w-full h-48 rounded-lg"
+                  resizeMode="cover"
+                  onError={(error) => {
+                    console.error("Error loading image:", error);
+                    Alert.alert("Error", "Failed to load image preview");
+                  }}
+                />
+                <TouchableOpacity
+                  className="absolute top-2 right-2 bg-black/50 p-2 rounded-full"
+                  onPress={() => setThumbnailUrl("")}
+                >
+                  <Ionicons name="close" size={20} color="white" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View className="flex-row items-center p-4 border border-dashed border-gray-300 rounded-lg">
+                <Ionicons name="image-outline" size={24} color="#666" />
+                <Text className="ml-2 text-gray-600">Add Cover Image</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Content Input */}
+          <TextInput
+            placeholder="Write your blog content..."
+            value={content}
+            onChangeText={setContent}
+            mode="flat"
+            multiline
+            numberOfLines={10}
+            className="bg-transparent"
+            style={{
+              backgroundColor: "transparent",
+              textAlignVertical: "top",
+              paddingHorizontal: 0,
+            }}
+            underlineColor="transparent"
+          />
         </ScrollView>
 
-        <TextInput
-          label="Nội dung"
-          value={content}
-          onChangeText={setContent}
-          mode="outlined"
-          multiline
-          numberOfLines={10}
-          className="mb-4"
-        />
-
-        <Button
-          mode="contained"
-          onPress={handleSubmit}
-          loading={loading}
-          disabled={loading}
-          className="mt-4"
-        >
-          Đăng Bài
-        </Button>
-      </ScrollView>
-    </View>
+        {loading && (
+          <View className="absolute inset-0 bg-black/30 items-center justify-center">
+            <View className="bg-white p-4 rounded-lg">
+              <Text>Creating blog...</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 
-export default NewReview;
+export default NewBlog;

@@ -15,12 +15,20 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.acenhox01.ReactNative"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "port": 3000,
+      "config": {
+        "proxy": "http://localhost:3000"
+      }
     },
     "plugins": [
       "expo-router",
@@ -33,10 +41,26 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to your photos to upload blog images.",
+          "cameraPermission": "The app needs access to your camera to take photos for your blog."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3000",
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "be899138-4b4e-49ac-8b1b-c5b4bc4a7770"
+      }
     }
   }
 }

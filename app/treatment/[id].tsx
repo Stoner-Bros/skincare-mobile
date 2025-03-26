@@ -27,10 +27,44 @@ export default function TreatmentDetail() {
 
   const loadTreatment = async () => {
     try {
-      const data = await api.treatments.getTreatment(id as string);
-      setTreatment(data);
-    } catch (error) {
+      setLoading(true);
+      const treatmentId = parseInt(id as string);
+      console.log("Loading treatment with ID:", treatmentId);
+
+      if (isNaN(treatmentId)) {
+        throw new Error("Invalid treatment ID");
+      }
+
+      const response = await api.treatments.getTreatment(treatmentId);
+      console.log("Treatment API response:", response);
+
+      if (response?.data?.data) {
+        // Định dạng lại data theo response API
+        const treatmentData = {
+          ...response.data.data,
+          image: response.data.data.treatmentThumbnailUrl
+            ? `https://skincare-api.azurewebsites.net/api/upload/${response.data.data.treatmentThumbnailUrl}`
+            : "https://via.placeholder.com/300",
+          name: response.data.data.treatmentName,
+          rating: 5, // Giá trị mặc định vì API không trả về
+          totalReviews: 0,
+          totalBookings: 0,
+          experience: "Professional",
+          certifications: [], // API không trả về nên để mảng rỗng
+          reviewStats: {
+            total: 0,
+            average: 5,
+            distribution: [],
+          },
+        };
+        console.log("Formatted treatment data:", treatmentData);
+        setTreatment(treatmentData);
+      } else {
+        throw new Error("Invalid treatment data structure");
+      }
+    } catch (error: any) {
       console.error("Error loading treatment:", error);
+      setTreatment(null);
     } finally {
       setLoading(false);
     }
@@ -74,68 +108,43 @@ export default function TreatmentDetail() {
           <View style={styles.stars}>{renderStars(treatment.rating)}</View>
           <View style={styles.verifiedBadge}>
             <Ionicons name="checkmark-circle" size={16} color="#2ecc71" />
-            <Text style={styles.verifiedText}>Verified Treatment</Text>
+            <Text style={styles.verifiedText}>
+              {treatment.isAvailable ? "Available" : "Unavailable"}
+            </Text>
           </View>
         </View>
         <Text style={styles.description}>{treatment.description}</Text>
       </View>
 
       <View style={styles.statsSection}>
-        <Text style={styles.statsTitle}>RATED {treatment.rating} by</Text>
-        <Text style={styles.statsValue}>{treatment.totalReviews} Reviews</Text>
+        <Text style={styles.statsTitle}>Duration</Text>
+        <Text style={styles.statsValue}>{treatment.duration} minutes</Text>
 
-        <Text style={styles.statsTitle}>Total Bookings</Text>
-        <Text style={styles.statsValue}>{treatment.totalBookings}</Text>
+        <Text style={styles.statsTitle}>Price</Text>
+        <Text style={styles.statsValue}>
+          {new Intl.NumberFormat("vi-VN", {
+            style: "currency",
+            currency: "VND",
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(treatment.price)}
+        </Text>
 
-        <Text style={styles.statsTitle}>Experience Level</Text>
-        <Text style={styles.statsValue}>{treatment.experience}</Text>
-
-        <Text style={styles.statsTitle}>Languages</Text>
-        <Text style={styles.statsValue}>{treatment.languages.join(", ")}</Text>
-
-        {treatment.certifications.map((cert: string, index: number) => (
-          <View key={index} style={styles.certificationItem}>
-            <Ionicons name="shield-checkmark" size={20} color="#2ecc71" />
-            <Text style={styles.certificationText}>{cert}</Text>
-          </View>
-        ))}
+        <Text style={styles.statsTitle}>Service ID</Text>
+        <Text style={styles.statsValue}>{treatment.serviceId}</Text>
       </View>
     </View>
   );
 
   const renderReviewsTab = () => (
     <View style={styles.tabContent}>
-      <View style={styles.reviewsHeader}>
-        <Text style={styles.reviewsCount}>
-          {treatment.reviewStats.total} Reviews
-        </Text>
-        <Text style={styles.reviewsAverage}>
-          {treatment.reviewStats.average} out of 5.0
-        </Text>
-      </View>
-
-      <View style={styles.distributionContainer}>
-        {treatment.reviewStats.distribution.map((item: any, index: number) => (
-          <View key={index} style={styles.distributionRow}>
-            <View style={styles.stars}>{renderStars(item.stars)}</View>
-            <View style={styles.distributionBar}>
-              <View
-                style={[styles.distributionFill, { width: item.percentage }]}
-              />
-            </View>
-            <Text style={styles.distributionCount}>{item.count}</Text>
-            <Text style={styles.distributionPercentage}>
-              ({item.percentage})
-            </Text>
-          </View>
-        ))}
-      </View>
+      <Text>No reviews available</Text>
     </View>
   );
 
   const renderBioTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.bioText}>{treatment.bio}</Text>
+      <Text>No additional information available</Text>
     </View>
   );
 
@@ -145,27 +154,22 @@ export default function TreatmentDetail() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton}>
-            <Ionicons name="heart-outline" size={24} color="#000" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton}>
-            <Ionicons name="share-outline" size={24} color="#000" />
-          </TouchableOpacity>
-        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Image source={{ uri: treatment.image }} style={styles.image} />
+        <Image
+          source={{ uri: treatment.image }}
+          style={styles.image}
+          onError={(e) =>
+            console.log("Image loading error:", e.nativeEvent.error)
+          }
+        />
 
         <View style={styles.profileInfo}>
           <Text style={styles.name}>{treatment.name}</Text>
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={16} color="#FFD700" />
-            <Text style={styles.rating}>{treatment.rating}</Text>
-          </View>
-          <Text style={styles.lastBooked}>
-            Last Booked: {treatment.lastBooked}
+          <Text style={styles.duration}>
+            <Ionicons name="time-outline" size={16} color="#666" />{" "}
+            {treatment.duration} min
           </Text>
         </View>
 
@@ -183,45 +187,26 @@ export default function TreatmentDetail() {
               About
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "reviews" && styles.activeTab]}
-            onPress={() => setActiveTab("reviews")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "reviews" && styles.activeTabText,
-              ]}
-            >
-              Reviews
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "bio" && styles.activeTab]}
-            onPress={() => setActiveTab("bio")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "bio" && styles.activeTabText,
-              ]}
-            >
-              BIO
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {activeTab === "about" && renderAboutTab()}
-        {activeTab === "reviews" && renderReviewsTab()}
-        {activeTab === "bio" && renderBioTab()}
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.bookButton}
-          onPress={() => router.push(`/booking/new?treatmentId=${id}`)}
+          style={[
+            styles.bookButton,
+            !treatment.isAvailable && styles.disabledButton,
+          ]}
+          onPress={() =>
+            treatment.isAvailable &&
+            router.push(`/booking/new?treatmentId=${id}`)
+          }
+          disabled={!treatment.isAvailable}
         >
-          <Text style={styles.bookButtonText}>Book Now</Text>
+          <Text style={styles.bookButtonText}>
+            {treatment.isAvailable ? "Book Now" : "Not Available"}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -422,5 +407,13 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  disabledButton: {
+    backgroundColor: "#ccc",
+  },
+  duration: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 4,
   },
 });
