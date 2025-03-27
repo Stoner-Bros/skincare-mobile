@@ -111,8 +111,32 @@ export const authApi = {
   
   // Logout
   logout: async () => {
-    const response = await apiClient.post('/api/auth/logout');
-    return response.data;
+    try {
+      const [accessToken, refreshToken] = await Promise.all([
+        AsyncStorage.getItem("accessToken"),
+        AsyncStorage.getItem("refreshToken")
+      ]);
+
+      if (!accessToken || !refreshToken) {
+        throw new Error("Missing tokens");
+      }
+
+      const response = await apiClient.post('/api/auth/logout', {
+        accessToken,
+        refreshToken
+      }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Logout response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
   },
   
   // Get user profile
@@ -565,6 +589,85 @@ export const skinTestApi = {
       return response.data;
     } catch (error) {
       console.error(`Error getting results for customer ${customerId}:`, error);
+      throw error;
+    }
+  },
+
+  // Lấy answer id theo customer id
+  getCustomerAnswers: async (customerId: number) => {
+    try {
+      const response = await apiClient.get(`/api/skin-test-answers/customer/${customerId}`);
+      console.log('Customer answers response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting customer answers:', error);
+      throw error;
+    }
+  },
+
+  // Lấy kết quả test theo answer id
+  getTestResult: async (answerId: number) => {
+    try {
+      // Sửa đường dẫn API từ /api/skin-test-results/${answerId} thành /api/skin-test-results/answer/${answerId}
+      const response = await apiClient.get(`/api/skin-test-results/answer/${answerId}`);
+      console.log('Test result response:', response.data);
+      
+      // Kiểm tra và format response data
+      if (response.data) {
+        return {
+          result: response.data.result || response.data.description || "Không có kết quả",
+          resultId: response.data.resultId,
+          skinTestAnswerId: response.data.skinTestAnswerId,
+          // Thêm các trường khác nếu cần
+        };
+      }
+      
+      throw new Error("Invalid response format");
+    } catch (error) {
+      console.error('Error getting test result:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        // Trường hợp chưa có kết quả
+        return {
+          result: null,
+          message: "Kết quả đang được xử lý"
+        };
+      }
+      throw error;
+    }
+  },
+
+  // Sửa lại hàm getLatestTestResult để xử lý tốt hơn
+  getLatestTestResult: async () => {
+    try {
+      // Lấy customer id từ AsyncStorage
+      const accountId = await AsyncStorage.getItem('accountId');
+      if (!accountId) {
+        throw new Error('No account ID found');
+      }
+
+      // Lấy danh sách answers của customer
+      const answersResponse = await skinTestApi.getCustomerAnswers(Number(accountId));
+      if (!answersResponse || !answersResponse.length) {
+        throw new Error('No test answers found');
+      }
+
+      // Lấy answer id mới nhất (giả sử API trả về theo thứ tự mới nhất)
+      const latestAnswerId = answersResponse[0].answerId;
+
+      // Lấy kết quả test từ answer id
+      const result = await skinTestApi.getTestResult(latestAnswerId);
+      
+      // Kiểm tra kết quả
+      if (!result || !result.result) {
+        return {
+          status: "pending",
+          message: "Kết quả đang được xử lý"
+        };
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error getting latest test result:', error);
       throw error;
     }
   }

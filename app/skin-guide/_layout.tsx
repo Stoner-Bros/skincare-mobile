@@ -12,6 +12,7 @@ export default function SkinGuideLayout() {
         name="index"
         options={{
           title: "Skin Care Guide",
+          headerShown: false,
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => router.back()}

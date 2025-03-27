@@ -200,7 +200,7 @@ export default function TreatmentDetail() {
           ]}
           onPress={() =>
             treatment.isAvailable &&
-            router.push(`/booking/new?treatmentId=${id}`)
+            router.push(`/(booking-flow)/new?treatmentId=${id}`)
           }
           disabled={!treatment.isAvailable}
         >

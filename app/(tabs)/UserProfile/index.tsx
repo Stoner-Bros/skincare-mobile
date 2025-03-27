@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ChatSupportButton from "@/components/common/ChatSupportButton";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/lib/api/endpoints";
+import axios from "axios";
 
 // Helper function để xử lý navigation với type safety
 const navigateTo = (router: ReturnType<typeof useRouter>, path: string) => {
@@ -129,15 +130,37 @@ const ProfileScreen = () => {
           try {
             // Gọi API đăng xuất
             await api.auth.logout();
-          } catch (error) {
-            console.error("Logout error:", error);
-            // Vẫn tiếp tục xóa token ngay cả khi API lỗi
-          } finally {
-            // Xóa token lưu trữ
-            await AsyncStorage.removeItem("accessToken");
-            await AsyncStorage.removeItem("refreshToken");
+            console.log("Logged out successfully");
+
+            // Xóa tất cả dữ liệu lưu trữ local
+            await AsyncStorage.multiRemove([
+              "accessToken",
+              "refreshToken",
+              "userProfile",
+              "accountId",
+            ]);
+
             // Chuyển đến trang login
             router.push("/(auth)/login");
+          } catch (error) {
+            console.error("Logout error:", error);
+
+            // Nếu lỗi 400 hoặc 401, vẫn xóa dữ liệu local
+            if (
+              axios.isAxiosError(error) &&
+              (error.response?.status === 400 || error.response?.status === 401)
+            ) {
+              await AsyncStorage.multiRemove([
+                "accessToken",
+                "refreshToken",
+                "userProfile",
+                "accountId",
+              ]);
+              router.push("/(auth)/login");
+            } else {
+              // Nếu là lỗi khác, hiển thị thông báo
+              Alert.alert("Lỗi", "Không thể đăng xuất. Vui lòng thử lại sau.");
+            }
           }
         },
       },

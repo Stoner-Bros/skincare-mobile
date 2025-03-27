@@ -55,13 +55,24 @@ const Login = () => {
               console.log("Profile response:", profileResponse);
 
               if (profileResponse?.data) {
+                // Lưu thông tin profile đầy đủ
                 const userProfile = {
+                  accountId: profileResponse.data.accountId, // Thêm accountId
                   email: profileResponse.data.email,
                   fullName:
                     profileResponse.data.fullName ||
                     profileResponse.data.email.split("@")[0],
                   phone: profileResponse.data.phone || "",
+                  address: profileResponse.data.address || "",
+                  dob: profileResponse.data.dob || "",
+                  avatar: profileResponse.data.avatar || "",
+                  otherInfo: profileResponse.data.otherInfo || "",
                 };
+                await AsyncStorage.setItem(
+                  "accountId",
+                  String(profileResponse.data.accountId)
+                );
+
                 await AsyncStorage.setItem(
                   "userProfile",
                   JSON.stringify(userProfile)

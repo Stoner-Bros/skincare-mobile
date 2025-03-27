@@ -70,6 +70,10 @@ export default function RootLayout() {
                 name="service/[id]"
                 options={{ headerShown: false }}
               />
+              <Stack.Screen
+                name="skin-guide"
+                options={{ headerShown: false }}
+              />
               {/* Other screens */}
             </Stack>
             <ChatSupportButton />

@@ -40,13 +40,18 @@ const TimeSlots = ({
     try {
       setLoading(true);
       setError(null);
-      const response = await api.timeSlots.getTimeSlots();
 
-      if (response?.data?.data) {
-        setTimeSlots(response.data.data);
+      const response = await api.timeSlots.getTimeSlots();
+      console.log("Time slots response:", response);
+
+      if (response?.data) {
+        setTimeSlots(response.data);
+        if (response.data.length === 0) {
+          setError("Không có khung giờ nào");
+        }
       } else {
         setTimeSlots([]);
-        setError("Không có khung giờ nào");
+        setError("Không có dữ liệu khung giờ");
       }
     } catch (error) {
       console.error("Error fetching time slots:", error);
@@ -156,7 +161,7 @@ const TimeSlots = ({
               <Link
                 key={slot.timeSlotId}
                 href={{
-                  pathname: "/booking/confirm",
+                  pathname: "/(booking-flow)/confirm",
                   params: {
                     timeSlotId: slot.timeSlotId,
                     serviceId: serviceId,
@@ -180,6 +185,7 @@ const TimeSlots = ({
                         : "bg-white border border-purple-100"
                     }
                   `}
+                  onPress={() => handleSelectTimeSlot(slot)}
                 >
                   <Text
                     className={`
@@ -207,7 +213,9 @@ const TimeSlots = ({
                       }
                     `}
                   >
-                    {formatTime(slot.endTime)}
+                    {slot.isAvailable
+                      ? formatTime(slot.endTime)
+                      : "Không có sẵn"}
                   </Text>
                 </TouchableOpacity>
               </Link>

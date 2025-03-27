@@ -19,6 +19,7 @@ import type {
   SkinTestAnswerRequest,
 } from "@/lib/types/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 
 const { width } = Dimensions.get("window");
 
@@ -93,7 +94,7 @@ export default function SkinTestScreen() {
     phone: "",
   });
   const [resultStatus, setResultStatus] = useState<
-    "loading" | "success" | "error" | null
+    "loading" | "success" | "error" | "waiting" | "pending" | null
   >(null);
 
   useEffect(() => {
@@ -262,95 +263,87 @@ export default function SkinTestScreen() {
       if (currentQuestion === questions.length - 1) {
         try {
           setLoading(true);
-
-          // Log thông tin customer trước khi submit
-          console.log("Current customer info:", customerInfo);
-
-          // Validate dữ liệu trước khi gửi
-          if (!customerInfo.email) {
-            setResult("Email is required");
-            return;
-          }
-
-          if (!customerInfo.fullName) {
-            setResult("Full name is required");
-            return;
-          }
-
-          // Thêm validation cho customerId
-          if (!customerInfo.customerId) {
-            console.warn("Customer ID is missing, attempting to get from API");
-            try {
-              // Thử lấy lại thông tin customer
-              const profileResponse = await api.auth.getProfile();
-              if (profileResponse?.accountId) {
-                const customerResponse =
-                  await api.customers.getCustomerByAccountId(
-                    profileResponse.accountId
-                  );
-                if (customerResponse) {
-                  setCustomerInfo((prev) => ({
-                    ...prev,
-                    customerId: customerResponse.customerId,
-                  }));
-                }
-              }
-            } catch (error) {
-              console.error("Failed to fetch customer ID:", error);
-            }
-          }
+          setResultStatus("loading");
 
           const submitData = {
             skinTestId: currentTest?.skinTestId || 0,
-            customerId: customerInfo.customerId, // Đảm bảo có customerId
+            customerId: customerInfo.customerId,
             email: customerInfo.email.trim(),
             fullName: customerInfo.fullName.trim(),
             phone: customerInfo.phone.trim() || "0353066296",
             answers: newAnswers.map((ans) => ans.toUpperCase()),
           };
 
-          // Log để debug
-          console.log("Customer info before submit:", customerInfo);
-          console.log("Submit data:", submitData);
+          // Submit câu trả lời và nhận về answerId
+          const submitResponse = await api.skinTest.submitAnswers(submitData);
+          console.log("Submit response:", submitResponse);
 
-          // Kiểm tra lại một lần nữa trước khi gửi
-          if (!submitData.customerId) {
+          if (submitResponse?.answerId) {
+            setAnswerId(submitResponse.answerId);
+
+            // Hiển thị thông báo chờ kết quả
             setResult(
-              "Error: Customer ID is required. Please try again or contact support."
+              "Cảm ơn bạn đã hoàn thành bài test. Chuyên gia của chúng tôi đang phân tích kết quả của bạn."
             );
-            return;
-          }
+            setResultStatus("waiting");
 
-          try {
-            setResultStatus("loading");
-            const response = await api.skinTest.submitAnswers(submitData);
-            console.log("Submit success:", response);
-
-            if (response?.skinTestAnswerId) {
-              const resultResponse = await api.skinTest.getResult(
-                response.skinTestAnswerId
+            // Ngay lập tức thử lấy kết quả
+            try {
+              const resultResponse = await api.skinTest.getTestResult(
+                submitResponse.answerId
               );
               console.log("Result response:", resultResponse);
-              setResult(resultResponse?.result || "Could not get result");
-              setResultStatus("success");
-            }
-          } catch (error: any) {
-            console.error("Submit error:", error);
-            setResultStatus("error");
 
-            // Parse error message nếu là JSON
-            let errorMessage = error.message;
-            try {
-              const errorData = JSON.parse(error.message);
-              errorMessage = Object.entries(errorData)
-                .map(([key, value]) => `${key}: ${value}`)
-                .join("\n");
-            } catch {
-              // Nếu không parse được JSON thì giữ nguyên message
-            }
+              if (resultResponse?.result) {
+                setResult(resultResponse.result);
+                setResultStatus("success");
+              } else {
+                // Nếu chưa có kết quả, thiết lập interval để kiểm tra định kỳ
+                const checkInterval = setInterval(async () => {
+                  try {
+                    const newResult = await api.skinTest.getTestResult(
+                      submitResponse.answerId
+                    );
+                    if (newResult?.result) {
+                      setResult(newResult.result);
+                      setResultStatus("success");
+                      clearInterval(checkInterval);
+                    }
+                  } catch (error) {
+                    console.error("Error checking result:", error);
+                  }
+                }, 5000); // Kiểm tra mỗi 5 giây
 
-            setResult(`Error: ${errorMessage}`);
+                // Dừng kiểm tra sau 1 phút
+                setTimeout(() => {
+                  clearInterval(checkInterval);
+                  if (resultStatus === "waiting") {
+                    setResult(
+                      "Kết quả của bạn đang được chuyên gia phân tích. Chúng tôi sẽ gửi email thông báo khi có kết quả."
+                    );
+                    setResultStatus("pending");
+                  }
+                }, 60000);
+
+                setResult(
+                  "Kết quả của bạn đang được chuyên gia phân tích. Vui lòng đợi trong giây lát..."
+                );
+                setResultStatus("waiting");
+              }
+            } catch (error) {
+              console.error("Error getting initial result:", error);
+              setResult(
+                "Kết quả của bạn đang được chuyên gia phân tích. Chúng tôi sẽ gửi email thông báo khi có kết quả."
+              );
+              setResultStatus("pending");
+            }
+          } else {
+            throw new Error("Không nhận được answer ID từ server");
           }
+        } catch (error: any) {
+          console.error("Submit error:", error);
+          setResultStatus("error");
+          setResult(`Error: ${error.message}`);
         } finally {
           setLoading(false);
         }
@@ -419,6 +412,201 @@ export default function SkinTestScreen() {
     );
   };
 
+  // Thêm function để parse kết quả
+  const formatResult = (resultString: string) => {
+    try {
+      const resultData = JSON.parse(resultString);
+      return {
+        treatmentId: resultData.treatmentId,
+        serviceId: resultData.serviceId,
+        treatmentName: resultData.treatmentName,
+        description: resultData.description,
+        duration: resultData.duration,
+        price: resultData.price,
+        message: resultData.message,
+        isAvailable: resultData.isAvailable,
+      };
+    } catch (error) {
+      console.error("Error parsing result:", error);
+      return null;
+    }
+  };
+
+  const renderResult = () => {
+    switch (resultStatus) {
+      case "loading":
+        return (
+          <View style={styles.resultContainer}>
+            <ActivityIndicator size="large" color="#A83F98" />
+            <Text style={styles.loadingText}>
+              Đang xử lý bài test của bạn...
+            </Text>
+          </View>
+        );
+
+      case "waiting":
+      case "pending":
+        return (
+          <View style={styles.resultContainer}>
+            <Text style={styles.resultTitle}>Đang chờ kết quả</Text>
+            <Text style={styles.resultText}>{result}</Text>
+            <Text style={styles.emailNote}>
+              Chúng tôi sẽ gửi email thông báo ngay khi có kết quả phân tích từ
+              chuyên gia.
+            </Text>
+          </View>
+        );
+
+      case "success":
+        const formattedResult = formatResult(result);
+        if (!formattedResult) {
+          return (
+            <View style={styles.resultContainer}>
+              <Text style={styles.resultTitle}>Có lỗi xử lý kết quả</Text>
+              <TouchableOpacity style={styles.retakeButton} onPress={resetQuiz}>
+                <Text style={styles.retakeButtonText}>Thử lại</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }
+
+        return (
+          <View style={styles.resultContainer}>
+            <Text style={styles.resultTitle}>
+              Dịch vụ dựa trên kết quả phân tích da của bạn
+            </Text>
+
+            <View style={styles.resultCard}>
+              <View style={styles.treatmentHeader}>
+                <Ionicons name="medical-outline" size={24} color="#A83F98" />
+                <Text style={styles.treatmentName}>
+                  {formattedResult.treatmentName}
+                </Text>
+              </View>
+
+              <View style={styles.resultInfoContainer}>
+                <View style={styles.resultInfoItem}>
+                  <Ionicons name="time-outline" size={20} color="#666" />
+                  <Text style={styles.resultInfoText}>
+                    Thời gian điều trị: {formattedResult.duration} phút
+                  </Text>
+                </View>
+
+                <View style={styles.resultInfoItem}>
+                  <Ionicons name="cash-outline" size={20} color="#666" />
+                  <Text style={styles.resultInfoText}>
+                    Chi phí điều trị:{" "}
+                    {new Intl.NumberFormat("vi-VN").format(
+                      formattedResult.price
+                    )}
+                    đ
+                  </Text>
+                </View>
+
+                <View style={styles.resultInfoItem}>
+                  <Ionicons
+                    name={
+                      formattedResult.isAvailable
+                        ? "checkmark-circle-outline"
+                        : "close-circle-outline"
+                    }
+                    size={20}
+                    color={formattedResult.isAvailable ? "#4CAF50" : "#F44336"}
+                  />
+                  <Text
+                    style={[
+                      styles.resultInfoText,
+                      {
+                        color: formattedResult.isAvailable
+                          ? "#4CAF50"
+                          : "#F44336",
+                      },
+                    ]}
+                  >
+                    {formattedResult.isAvailable
+                      ? "Có sẵn để điều trị"
+                      : "Tạm thời không có sẵn"}
+                  </Text>
+                </View>
+              </View>
+
+              {formattedResult.description && (
+                <View style={styles.descriptionContainer}>
+                  <Text style={styles.descriptionTitle}>
+                    Đề xuất của chuyên gia:
+                  </Text>
+                  <Text style={styles.descriptionText}>
+                    {formattedResult.description}
+                  </Text>
+                </View>
+              )}
+
+              {formattedResult.message && (
+                <View style={styles.messageContainer}>
+                  <Text style={styles.messageText}>
+                    "{formattedResult.message}"
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.resultActionsContainer}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.primaryButton]}
+                onPress={() => router.push("/recommended-products")}
+              >
+                <Text style={styles.actionButtonText}>
+                  Xem sản phẩm được đề xuất
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.secondaryButton]}
+                onPress={resetQuiz}
+              >
+                <View style={styles.buttonContent}>
+                  <Ionicons name="refresh-outline" size={20} color="#A83F98" />
+                  <Text
+                    style={[
+                      styles.actionButtonText,
+                      styles.secondaryButtonText,
+                    ]}
+                  >
+                    Làm lại bài test
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.outlineButton]}
+                onPress={() => router.push("/skin-guide")}
+              >
+                <Text
+                  style={[styles.actionButtonText, styles.outlineButtonText]}
+                >
+                  Đọc Hướng Dẫn Chăm Sóc Da
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+
+      case "error":
+        return (
+          <View style={styles.resultContainer}>
+            <Text style={styles.resultTitle}>Có lỗi xảy ra</Text>
+            <Text style={styles.resultText}>{result}</Text>
+            <TouchableOpacity style={styles.retakeButton} onPress={resetQuiz}>
+              <Text style={styles.retakeButtonText}>Thử lại</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#f6e7ff", "#ffffff"]} style={styles.gradient}>
@@ -468,81 +656,7 @@ export default function SkinTestScreen() {
             {questions.length > 0 && renderQuestion(questions[currentQuestion])}
           </ScrollView>
         ) : (
-          <ScrollView style={styles.quizContainer}>
-            <View style={styles.resultContainer}>
-              <Text style={styles.resultTitle}>Your Skin Analysis Result</Text>
-
-              {resultStatus === "loading" ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#A83F98" />
-                  <Text style={styles.loadingText}>
-                    Analyzing your skin type...
-                  </Text>
-                </View>
-              ) : resultStatus === "error" ? (
-                <>
-                  <Text style={styles.resultText}>{result}</Text>
-                  <Text style={styles.resultSubText}>
-                    Don't worry! You can try the test again or check your email
-                    for the results later.
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.retakeButton}
-                    onPress={resetQuiz}
-                  >
-                    <Text style={styles.retakeButtonText}>Retake Test</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.resultText}>{result}</Text>
-                  <View style={styles.resultActionsContainer}>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.primaryButton]}
-                      onPress={() => router.push("/recommended-products")}
-                    >
-                      <Text style={styles.actionButtonText}>
-                        View Recommended Products
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.secondaryButton]}
-                      onPress={resetQuiz}
-                    >
-                      <Text
-                        style={[
-                          styles.actionButtonText,
-                          styles.secondaryButtonText,
-                        ]}
-                      >
-                        Retake Test
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.outlineButton]}
-                      onPress={() => router.push("/skin-guide")}
-                    >
-                      <Text
-                        style={[
-                          styles.actionButtonText,
-                          styles.outlineButtonText,
-                        ]}
-                      >
-                        Read Skin Care Guide
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <Text style={styles.emailNote}>
-                    We've sent detailed results to your email. Check your inbox
-                    for personalized skin care recommendations!
-                  </Text>
-                </>
-              )}
-            </View>
-          </ScrollView>
+          <ScrollView style={styles.quizContainer}>{renderResult()}</ScrollView>
         )}
       </LinearGradient>
     </View>
@@ -717,6 +831,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: "#666",
+    textAlign: "center",
     marginTop: 16,
   },
   selectedOption: {
@@ -769,7 +884,88 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     textAlign: "center",
-    marginTop: 24,
+    marginTop: 16,
     fontStyle: "italic",
+  },
+  resultCard: {
+    width: "100%",
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 20,
+    marginVertical: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  treatmentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  treatmentName: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#A83F98",
+    marginLeft: 12,
+  },
+  resultInfoContainer: {
+    marginBottom: 16,
+  },
+  resultInfoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 8,
+    backgroundColor: "#f8f8f8",
+    padding: 12,
+    borderRadius: 8,
+  },
+  resultInfoText: {
+    fontSize: 16,
+    color: "#666",
+    marginLeft: 8,
+    flex: 1,
+  },
+  descriptionContainer: {
+    backgroundColor: "#f8f8f8",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  descriptionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  descriptionText: {
+    fontSize: 15,
+    color: "#666",
+    lineHeight: 22,
+  },
+  messageContainer: {
+    alignItems: "center",
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  messageText: {
+    fontSize: 16,
+    fontStyle: "italic",
+    color: "#A83F98",
+    textAlign: "center",
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 });
