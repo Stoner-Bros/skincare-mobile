@@ -255,7 +255,7 @@ export default function DateTimeSelection() {
       setLoading(true);
       const formattedDate = selectedDate!.toISOString().split("T")[0];
       const selectedSlotIds = nextSlots.map((s) => s.timeSlotId);
-
+      console.log("selectedSlotIds", selectedSlotIds);
       try {
         // Lấy danh sách therapist rảnh cho các slots đã chọn
         const freeTherapistsResponse = await api.timeSlots.getFreeTherapists(

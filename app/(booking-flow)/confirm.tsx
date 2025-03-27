@@ -266,7 +266,7 @@ export default function BookingConfirmation() {
         phone: editedProfile.phone?.trim() || userProfile.phone || "",
         fullName: formatFullName(editedProfile.fullName),
         treatmentId: Number(treatment.treatmentId || treatment.id),
-        skinTherapistId: specialist ? Number(specialist.id) : 0, // Đổi null thành 0 theo schema
+        skinTherapistId: specialist ? Number(specialist.id) : null, // Đổi null thành 0 theo schema
         date: bookingState.date,
         timeSlotIds: bookingState.timeSlotIds.map(Number), // Đảm bảo là array of numbers
         notes: notes.trim() || "No special requests",

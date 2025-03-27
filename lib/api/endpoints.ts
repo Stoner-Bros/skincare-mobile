@@ -666,16 +666,27 @@ export const timeSlotsApi = {
   },
 
   // Lấy danh sách therapist rảnh theo time slot
-  getFreeTherapists: async (date: string, timeSlotId: number, pageNumber = 1, pageSize = 10) => {
+  getFreeTherapists: async (date: string, timeSlotIds: number[], pageNumber = 1, pageSize = 10) => {
     try {
+      // Chuyển mảng timeSlotIds thành chuỗi được phân tách bằng dấu phẩy
+      const timeSlotIdsString = timeSlotIds.join(',');
+      
       const response = await apiClient.get('/api/skintherapists/free', {
         params: {
           date,
-          timeSlotId,
+          timeSlotIds: timeSlotIdsString, // Gửi dưới dạng string "1,2,3"
           pageNumber,
           pageSize
         }
       });
+      
+      console.log('API Request params:', {
+        date,
+        timeSlotIds: timeSlotIdsString,
+        pageNumber,
+        pageSize
+      });
+      
       return response.data;
     } catch (error) {
       console.error('Error fetching free therapists:', error);
