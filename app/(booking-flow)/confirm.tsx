@@ -12,13 +12,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { api } from "@/lib/api/endpoints";
 
 const paymentMethods = [
   {
-    id: "card",
-    name: "Credit Card",
-    icon: "card-outline",
-    last4: "4242",
+    id: "momo",
+    name: "MoMo Wallet",
+    icon: "wallet-outline",
   },
   {
     id: "cash",
@@ -30,12 +30,25 @@ const paymentMethods = [
 export default function BookingConfirmation() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [selectedPayment, setSelectedPayment] = useState<string>("card");
+  const [selectedPayment, setSelectedPayment] = useState<string>("momo");
   const [notes, setNotes] = useState<string>("");
   const [promoCode, setPromoCode] = useState<string>("");
   const [discount, setDiscount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [savedCards, setSavedCards] = useState<any[]>([]);
+  const [bookingDetails, setBookingDetails] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isGuest, setIsGuest] = useState(false);
+  const [guestInfo, setGuestInfo] = useState({
+    email: "",
+    phone: "",
+    fullName: "",
+  });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({
+    fullName: "",
+    phone: "",
+  });
 
   const basePrice = 89.99;
   const tax = basePrice * 0.1;
@@ -57,6 +70,145 @@ export default function BookingConfirmation() {
     loadSavedCards();
   }, []);
 
+  // Load booking details from AsyncStorage
+  useEffect(() => {
+    const loadBookingDetails = async () => {
+      try {
+        const [treatmentData, specialistData, bookingStateData] =
+          await Promise.all([
+            AsyncStorage.getItem("selectedTreatment"),
+            AsyncStorage.getItem("selectedSpecialist"),
+            AsyncStorage.getItem("bookingState"),
+          ]);
+
+        console.log("Raw treatment data from storage:", treatmentData);
+        console.log("Raw specialist data from storage:", specialistData);
+        console.log("Raw booking state from storage:", bookingStateData);
+
+        if (!treatmentData || !bookingStateData) {
+          Alert.alert("Error", "Missing booking information");
+          router.back();
+          return;
+        }
+
+        const treatment = JSON.parse(treatmentData);
+        const bookingState = JSON.parse(bookingStateData);
+        const specialist = specialistData ? JSON.parse(specialistData) : null;
+
+        // Validate dữ liệu
+        if (!treatment.id && !treatment.treatmentId) {
+          Alert.alert("Error", "Invalid treatment data");
+          router.back();
+          return;
+        }
+
+        if (
+          !bookingState.timeSlotIds ||
+          !Array.isArray(bookingState.timeSlotIds)
+        ) {
+          Alert.alert("Error", "Invalid time slot data");
+          router.back();
+          return;
+        }
+
+        setBookingDetails({
+          treatment,
+          specialist,
+          bookingState,
+          price: Number(treatment.price) || 0,
+          tax: (Number(treatment.price) || 0) * 0.1,
+        });
+      } catch (error) {
+        console.error("Error loading booking details:", error);
+        Alert.alert("Error", "Failed to load booking details");
+      }
+    };
+
+    loadBookingDetails();
+  }, []);
+
+  // Sửa lại useEffect để load user profile
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        console.log("Checking auth and loading profile...");
+        const [token, profileData] = await Promise.all([
+          AsyncStorage.getItem("accessToken"),
+          AsyncStorage.getItem("userProfile"),
+        ]);
+
+        console.log("Token:", token);
+        console.log("Raw profile data:", profileData);
+
+        if (!token) {
+          Alert.alert("Error", "Please login to continue");
+          router.push("/(auth)/login");
+          return;
+        }
+
+        if (profileData) {
+          const profile = JSON.parse(profileData);
+          console.log("Parsed profile:", profile);
+          if (!profile.email) {
+            // Nếu không có email trong profile, lấy từ API
+            const profileResponse = await api.auth.getProfile();
+            console.log("API profile response:", profileResponse);
+            if (profileResponse?.data) {
+              const updatedProfile = {
+                email: profileResponse.data.email,
+                fullName:
+                  profileResponse.data.fullName || profile.fullName || "",
+                phone: profileResponse.data.phone || profile.phone || "",
+              };
+              console.log("Updated profile:", updatedProfile);
+              await AsyncStorage.setItem(
+                "userProfile",
+                JSON.stringify(updatedProfile)
+              );
+              setUserProfile(updatedProfile);
+            }
+          } else {
+            setUserProfile(profile);
+          }
+        } else {
+          // Không có profile trong storage, lấy từ API
+          console.log("No profile in storage, fetching from API...");
+          const profileResponse = await api.auth.getProfile();
+          console.log("API profile response:", profileResponse);
+          if (profileResponse?.data) {
+            const userProfile = {
+              email: profileResponse.data.email,
+              fullName: profileResponse.data.fullName || "",
+              phone: profileResponse.data.phone || "",
+            };
+            console.log("Setting new profile:", userProfile);
+            await AsyncStorage.setItem(
+              "userProfile",
+              JSON.stringify(userProfile)
+            );
+            setUserProfile(userProfile);
+          }
+        }
+      } catch (error) {
+        console.error("Error in checkAuth:", error);
+        Alert.alert("Error", "Please login again");
+        router.push("/(auth)/login");
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // Thêm useEffect để khởi tạo editedProfile từ userProfile
+  useEffect(() => {
+    if (userProfile) {
+      setEditedProfile({
+        fullName: userProfile.fullName || "",
+        phone: userProfile.phone || "",
+      });
+    }
+  }, [userProfile]);
+
   const applyPromoCode = () => {
     if (promoCode.toLowerCase() === "welcome20") {
       setDiscount(basePrice * 0.2);
@@ -70,40 +222,109 @@ export default function BookingConfirmation() {
     }
   };
 
-  const handleConfirm = async () => {
-    setIsLoading(true);
+  // Thêm hàm format fullName
+  const formatFullName = (name: string) => {
+    // Chuyển đổi thành title case và loại bỏ khoảng trắng thừa
+    return name
+      .trim()
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
+  const handleConfirm = async () => {
     try {
-      // Save current booking details to AsyncStorage for checkout page
-      const bookingDetails = {
-        date: params.date,
-        time: params.time,
-        specialist: "Jazy Dewo",
-        treatment: "Deep Tissue Massage (60 min)",
-        basePrice: basePrice,
-        tax: tax,
-        discount: discount,
-        total: total,
-        notes: notes,
+      console.log("1. Starting handleConfirm...");
+      setIsLoading(true);
+
+      // Validate fullName
+      if (!editedProfile.fullName.trim()) {
+        Alert.alert("Error", "Please enter your full name");
+        return;
+      }
+
+      // Get all necessary data
+      const [treatmentData, specialistData, bookingStateData] =
+        await Promise.all([
+          AsyncStorage.getItem("selectedTreatment"),
+          AsyncStorage.getItem("selectedSpecialist"),
+          AsyncStorage.getItem("bookingState"),
+        ]);
+
+      if (!treatmentData || !bookingStateData) {
+        throw new Error("Missing booking information");
+      }
+
+      const treatment = JSON.parse(treatmentData);
+      const bookingState = JSON.parse(bookingStateData);
+      const specialist = specialistData ? JSON.parse(specialistData) : null;
+
+      // Format booking request theo đúng schema
+      const bookingRequest = {
+        email: userProfile.email,
+        phone: editedProfile.phone?.trim() || userProfile.phone || "",
+        fullName: formatFullName(editedProfile.fullName),
+        treatmentId: Number(treatment.treatmentId || treatment.id),
+        skinTherapistId: specialist ? Number(specialist.id) : 0, // Đổi null thành 0 theo schema
+        date: bookingState.date,
+        timeSlotIds: bookingState.timeSlotIds.map(Number), // Đảm bảo là array of numbers
+        notes: notes.trim() || "No special requests",
+        paymentMethod: selectedPayment,
       };
 
-      await AsyncStorage.setItem(
-        "currentBooking",
-        JSON.stringify(bookingDetails)
+      console.log(
+        "Sending booking request:",
+        JSON.stringify(bookingRequest, null, 2)
       );
 
-      // Navigate to checkout page
-      router.push({
-        pathname: "/(booking-flow)/checkout",
-        params: {
+      const response = await api.bookings.createBooking(bookingRequest);
+
+      if (response?.data) {
+        console.log("14. Booking successful");
+        // Thêm thông tin chi tiết hơn về response
+        console.log("Booking response data:", response.data);
+
+        const bookingSummary = {
+          ...response.data,
+          treatmentName: treatment.name,
+          specialistName: specialist?.name || "Not selected",
+          date: bookingState.date,
+          price: treatment.price,
+          total: treatment.price,
+          // Thêm thông tin thanh toán
           paymentMethod: selectedPayment,
-        },
-      });
+          // Thêm thông tin khách hàng
+          customerInfo: {
+            fullName: formatFullName(editedProfile.fullName),
+            email: userProfile.email,
+            phone: editedProfile.phone?.trim() || userProfile.phone || "",
+          },
+        };
+
+        await AsyncStorage.setItem(
+          "currentBooking",
+          JSON.stringify(bookingSummary)
+        );
+
+        console.log("15. Clearing old booking data");
+        await Promise.all([
+          AsyncStorage.removeItem("selectedTreatment"),
+          AsyncStorage.removeItem("selectedSpecialist"),
+          AsyncStorage.removeItem("bookingState"),
+        ]);
+
+        console.log("16. Navigating to success page");
+        router.push("/(booking-flow)/success");
+      } else {
+        console.log("17. No response data from API");
+        throw new Error("No response from server");
+      }
     } catch (error) {
-      console.error("Error saving booking details:", error);
+      console.error("Error in handleConfirm:", error);
       Alert.alert(
-        "Error",
-        "There was an error processing your booking. Please try again."
+        "Booking Error",
+        error instanceof Error ? error.message : "Failed to create booking"
       );
     } finally {
       setIsLoading(false);
@@ -113,6 +334,143 @@ export default function BookingConfirmation() {
   const addNewPaymentMethod = () => {
     router.push("/profile/payment-methods/add");
   };
+
+  // Render booking details section
+  const renderBookingDetails = () => {
+    if (!bookingDetails) return null;
+
+    const { treatment, specialist, bookingState } = bookingDetails;
+    const selectedDate = new Date(bookingState.date);
+
+    return (
+      <View style={styles.detailCard}>
+        <View style={styles.detailRow}>
+          <Ionicons name="calendar-outline" size={20} color="#666" />
+          <Text style={styles.detailText}>
+            {selectedDate.toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Ionicons name="time-outline" size={20} color="#666" />
+          <Text style={styles.detailText}>
+            {bookingState.timeSlotIds.length} time slot(s) selected
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Ionicons name="medical-outline" size={20} color="#666" />
+          <Text style={styles.detailText}>
+            {treatment.name} ({treatment.duration} min)
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Ionicons name="person-outline" size={20} color="#666" />
+          <Text style={styles.detailText}>
+            {specialist ? specialist.fullName : "No specialist selected"}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Ionicons name="wallet-outline" size={20} color="#666" />
+          <Text style={styles.detailText}>
+            Payment: {selectedPayment === "momo" ? "MoMo Wallet" : "Cash"}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  // Component GuestForm để nhập thông tin khách
+  const GuestForm = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Guest Information</Text>
+      <View style={styles.formContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Full Name *"
+          value={guestInfo.fullName}
+          onChangeText={(text) =>
+            setGuestInfo((prev) => ({ ...prev, fullName: text }))
+          }
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Email *"
+          value={guestInfo.email}
+          onChangeText={(text) =>
+            setGuestInfo((prev) => ({ ...prev, email: text }))
+          }
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Phone Number *"
+          value={guestInfo.phone}
+          onChangeText={(text) =>
+            setGuestInfo((prev) => ({ ...prev, phone: text }))
+          }
+          keyboardType="phone-pad"
+        />
+      </View>
+    </View>
+  );
+
+  // Thêm component để edit profile
+  const ProfileForm = () => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Your Information</Text>
+        <TouchableOpacity
+          onPress={() => setIsEditingProfile(!isEditingProfile)}
+        >
+          <Text style={styles.addNewText}>
+            {isEditingProfile ? "Cancel" : "Edit"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {isEditingProfile ? (
+        <View style={styles.formContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Full Name *"
+            value={editedProfile.fullName}
+            onChangeText={(text) =>
+              setEditedProfile((prev) => ({ ...prev, fullName: text }))
+            }
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Phone Number"
+            value={editedProfile.phone}
+            onChangeText={(text) =>
+              setEditedProfile((prev) => ({ ...prev, phone: text }))
+            }
+            keyboardType="phone-pad"
+          />
+        </View>
+      ) : (
+        <View style={styles.detailCard}>
+          <View style={styles.detailRow}>
+            <Ionicons name="person-outline" size={20} color="#666" />
+            <Text style={styles.detailText}>
+              {userProfile?.fullName || "Please add your name"}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="call-outline" size={20} color="#666" />
+            <Text style={styles.detailText}>
+              {userProfile?.phone || "No phone number"}
+            </Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -132,35 +490,11 @@ export default function BookingConfirmation() {
         style={styles.scrollView}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
+        <ProfileForm />
+        {isGuest && <GuestForm />}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Booking Details</Text>
-          <View style={styles.detailCard}>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                {new Date(params.date as string).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>{params.time}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="person-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>Jazy Dewo</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="medical-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Deep Tissue Massage (60 min)
-              </Text>
-            </View>
-          </View>
+          {renderBookingDetails()}
         </View>
 
         <View style={styles.section}>
@@ -184,11 +518,6 @@ export default function BookingConfirmation() {
                 <Ionicons name={method.icon as any} size={24} color="#333" />
                 <View>
                   <Text style={styles.paymentText}>{method.name}</Text>
-                  {method.last4 && (
-                    <Text style={styles.cardDetails}>
-                      •••• •••• •••• {method.last4}
-                    </Text>
-                  )}
                 </View>
               </View>
               <View style={styles.radioButton}>
@@ -235,29 +564,29 @@ export default function BookingConfirmation() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Price Details</Text>
-          <View style={styles.priceCard}>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Treatment</Text>
-              <Text style={styles.priceValue}>${basePrice.toFixed(2)}</Text>
-            </View>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Tax</Text>
-              <Text style={styles.priceValue}>${tax.toFixed(2)}</Text>
-            </View>
-            {discount > 0 && (
+          {bookingDetails && (
+            <View style={styles.priceCard}>
               <View style={styles.priceRow}>
-                <Text style={styles.discountLabel}>Discount</Text>
-                <Text style={styles.discountValue}>
-                  -${discount.toFixed(2)}
+                <Text style={styles.priceLabel}>Treatment</Text>
+                <Text style={styles.priceValue}>
+                  ${bookingDetails.price.toFixed(2)}
                 </Text>
               </View>
-            )}
-            <View style={styles.divider} />
-            <View style={styles.priceRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Tax (10%)</Text>
+                <Text style={styles.priceValue}>
+                  ${bookingDetails.tax.toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.priceRow}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalValue}>
+                  ${(bookingDetails.price + bookingDetails.tax).toFixed(2)}
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         <View style={styles.termsSection}>
@@ -278,7 +607,8 @@ export default function BookingConfirmation() {
               <Text style={styles.confirmButtonText}>Processing...</Text>
             ) : (
               <Text style={styles.confirmButtonText}>
-                Proceed to Checkout (${total.toFixed(2)})
+                Proceed to Checkout ($
+                {(bookingDetails?.price + bookingDetails?.tax).toFixed(2)})
               </Text>
             )}
           </TouchableOpacity>
@@ -489,5 +819,14 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  formContainer: {
+    gap: 12,
+  },
+  input: {
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
   },
 });

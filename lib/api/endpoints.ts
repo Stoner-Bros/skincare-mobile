@@ -12,9 +12,14 @@ import type {
   SkinTherapistCreationRequest,
   SkinTherapistUpdateRequest,
   SkinTestAnswerSubmission,
-  SkinTestAnswerRequest
+  SkinTestAnswerRequest,
+  BookingCreationRequest,
+  BookingUpdateRequest,
+  AccountUpdateRequest
 } from '../types/api';
 import { apiClient } from './config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 // Account API endpoints
 export const accountApi = {
@@ -37,9 +42,36 @@ export const accountApi = {
   },
   
   // Update account
-  updateAccount: async (id: string, data: any) => {
-    const response = await apiClient.put(`/api/accounts/${id}`, data);
-    return response.data;
+  updateAccount: async (id: number, data: AccountUpdateRequest) => {
+    try {
+      const token = await AsyncStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error("No access token found");
+      }
+
+      console.log("Updating account with data:", data);
+      
+      // Gửi data trực tiếp không wrap trong request
+      const response = await apiClient.put(`/api/accounts/${id}`, {
+        fullName: data.fullName,
+        avatar: data.avatar || null,
+        phone: data.phone || null,
+        address: data.address || null,
+        dob: data.dob || null,
+        otherInfo: data.otherInfo || null
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log("Raw API response:", response);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating account:", error);
+      throw error;
+    }
   },
   
   // Delete account
@@ -70,8 +102,10 @@ export const authApi = {
   },
   
   // Validate token
-  validateToken: async () => {
-    const response = await apiClient.get('/api/auth/validate-token');
+  validateToken: async (token: string) => {
+    const response = await apiClient.get('/api/auth/validate-token', {
+      params: { token }
+    });
     return response.data;
   },
   
@@ -83,7 +117,12 @@ export const authApi = {
   
   // Get user profile
   getProfile: async () => {
-    const response = await apiClient.get('/api/auth/profile');
+    const token = await AsyncStorage.getItem("accessToken");
+    const response = await apiClient.get('/api/auth/profile', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     return response.data;
   }
 };
@@ -155,31 +194,93 @@ export const skinTherapistApi = {
 
 // Booking API endpoints
 export const bookingApi = {
-  // Create booking
-  createBooking: async (data: any) => {
-    const response = await apiClient.post('/api/bookings', data);
-    return response.data;
+  // Tạo booking mới
+  createBooking: async (data: BookingCreationRequest) => {
+    try {
+      console.log('Creating booking with data:', data);
+      
+      // Gửi trực tiếp data, không wrap trong object request nữa
+      const response = await apiClient.post('/api/bookings', data);
+      console.log('Booking creation response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      throw error;
+    }
   },
   
-  // Get booking details
-  getBooking: async (id: string) => {
-    const response = await apiClient.get(`/api/bookings/${id}`);
-    return response.data;
+  // Lấy danh sách bookings
+  getBookings: async (pageNumber = 1, pageSize = 10) => {
+    try {
+      const response = await apiClient.get('/api/bookings', {
+        params: { pageNumber, pageSize }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      throw error;
+    }
   },
-  
-  // Cancel booking
-  cancelBooking: async (id: string) => {
-    const response = await apiClient.delete(`/api/bookings/${id}`);
-    return response.data;
+
+  // Lấy lịch sử booking
+  getBookingHistory: async (customerId: number, pageNumber = 1, pageSize = 10) => {
+    try {
+      const response = await apiClient.get('/api/bookings/history', {
+        params: { customerId, pageNumber, pageSize }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching booking history:', error);
+      throw error;
+    }
   },
-  
-  // Update booking
-  updateBooking: async (id: string, data: any) => {
-    const response = await apiClient.put(`/api/bookings/${id}`, data);
-    return response.data;
+
+  // Lấy lịch sử booking theo email
+  getBookingHistoryByEmail: async (email: string) => {
+    try {
+      const response = await apiClient.get(`/api/bookings/history/email`, {
+        params: { email }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching booking history by email:', error);
+      throw error;
+    }
+  },
+
+  // Lấy chi tiết booking
+  getBooking: async (id: number) => {
+    try {
+      const response = await apiClient.get(`/api/bookings/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching booking ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Cập nhật booking
+  updateBooking: async (id: number, data: BookingUpdateRequest) => {
+    try {
+      const response = await apiClient.put(`/api/bookings/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating booking ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Hủy booking
+  cancelBooking: async (id: number) => {
+    try {
+      const response = await apiClient.delete(`/api/bookings/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error canceling booking ${id}:`, error);
+      throw error;
+    }
   }
 };
-
 
 // Blog API endpoints
 export const blogApi = {
@@ -240,8 +341,12 @@ export const blogApi = {
   },
   
   // Create blog
-  createBlog: async (data: BlogCreationRequest) => {
-    const response = await apiClient.post('/api/blogs', data);
+  createBlog: async (data: BlogCreationRequest, token?: string) => {
+    const response = await apiClient.post('/api/blogs', data, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     return response.data;
   },
   
@@ -375,20 +480,23 @@ export const skinTestApi = {
   // Submit answers và trả về answerId
   submitAnswers: async (data: SkinTestAnswerRequest) => {
     try {
-      console.log('Submitting with data:', data);
-      const response = await apiClient.post('/api/skin-test-answers', {
+      console.log('Raw submit data:', data);
+      
+      const submitData = {
         skinTestId: data.skinTestId,
-        customerId: data.customerId || null,
-        guestId: data.guestId,
-        answers: data.answers // ["A", "B", "C", "D"]
-      }, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+        customerId: data.customerId,
+        email: data.email?.trim(),
+        fullName: data.fullName?.trim(),
+        phone: data.phone?.trim() || "0353066296",
+        answers: data.answers.map(ans => ans.toUpperCase())
+      };
+
+      console.log('Formatted submit data:', submitData);
+
+      const response = await apiClient.post('/api/skin-test-answers', submitData);
       console.log('Submit response:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Submit error:', error);
       throw error;
     }
@@ -409,6 +517,56 @@ export const skinTestApi = {
   getResults: async () => {
     const response = await apiClient.get('/api/skin-test-results');
     return response.data;
+  },
+
+  // Lấy lịch sử skin test answers theo customerId
+  getAnswerHistory: async (customerId: number) => {
+    try {
+      const response = await apiClient.get(`/api/skin-test-answers/history/${customerId}`);
+      console.log('Answer history response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting answer history:', error);
+      throw error;
+    }
+  },
+
+  // Lấy lịch sử skin test answers theo email
+  getAnswerHistoryByEmail: async (email: string) => {
+    try {
+      const response = await apiClient.get('/api/skin-test-answers/history', {
+        params: { email }
+      });
+      console.log('Answer history by email response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting answer history by email:', error);
+      throw error;
+    }
+  },
+
+  // Lấy chi tiết một câu trả lời cụ thể
+  getAnswerDetail: async (answerId: number) => {
+    try {
+      const response = await apiClient.get(`/api/skin-test-answers/${answerId}`);
+      console.log('Answer detail response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error getting answer detail for ID ${answerId}:`, error);
+      throw error;
+    }
+  },
+
+  // Lấy tất cả kết quả skin test của một customer
+  getCustomerResults: async (customerId: number) => {
+    try {
+      const response = await apiClient.get(`/api/skin-test-results/customer/${customerId}`);
+      console.log('Customer results response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error getting results for customer ${customerId}:`, error);
+      throw error;
+    }
   }
 };
 
@@ -452,39 +610,182 @@ export const skinTestQuestionApi = {
 
 // Time Slots API endpoints
 export const timeSlotsApi = {
-  // Lấy tất cả time slots
+  // Lấy tất cả time slots có sẵn
   getTimeSlots: async () => {
     try {
-      console.log('Fetching time slots...');
+      console.log('Fetching available time slots...');
       const response = await apiClient.get('/api/timeslots');
       console.log('Time slots response:', response.data);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Error fetching time slots:', error);
       throw error;
     }
   },
   
-  // Lấy time slot theo ID
+  // Lấy chi tiết time slot
   getTimeSlot: async (id: number) => {
     try {
-      console.log(`Fetching time slot with id: ${id}`);
       const response = await apiClient.get(`/api/timeslots/${id}`);
-      console.log('Time slot response:', response.data);
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`Error fetching time slot ${id}:`, error);
       throw error;
     }
   },
 
-  // Kiểm tra tính khả dụng của time slot
-  checkAvailability: async (id: number) => {
+  // Lấy time slots theo specialist và ngày
+  getSpecialistTimeSlots: async (specialistId: number, date: string) => {
     try {
-      const response = await apiClient.get(`/api/timeslots/${id}`);
-      return response.data.isAvailable;
+      const response = await apiClient.get('/api/skin-therapist-schedules', {
+        params: { 
+          specialistId,
+          date
+        }
+      });
+      return response.data;
     } catch (error) {
-      console.error(`Error checking time slot availability ${id}:`, error);
+      console.error('Error fetching specialist time slots:', error);
+      throw error;
+    }
+  },
+
+  // Kiểm tra slot có available không
+  checkSlotAvailability: async (specialistId: number, date: string, timeSlotIds: number[]) => {
+    try {
+      const response = await apiClient.post('/api/skin-therapist-schedules/check-availability', {
+        specialistId,
+        date,
+        timeSlotIds
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error checking slot availability:', error);
+      throw error;
+    }
+  },
+
+  // Lấy danh sách therapist rảnh theo time slot
+  getFreeTherapists: async (date: string, timeSlotId: number, pageNumber = 1, pageSize = 10) => {
+    try {
+      const response = await apiClient.get('/api/skintherapists/free', {
+        params: {
+          date,
+          timeSlotId,
+          pageNumber,
+          pageSize
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching free therapists:', error);
+      throw error;
+    }
+  }
+  
+};
+
+// Customer API endpoints
+export const customerApi = {
+  // Lấy tất cả customers
+  getCustomers: async (pageNumber = 1, pageSize = 10) => {
+    try {
+      const response = await apiClient.get('/api/customers', {
+        params: { pageNumber, pageSize }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      throw error;
+    }
+  },
+
+  // Lấy customer theo id
+  getCustomer: async (id: number) => {
+    try {
+      const response = await apiClient.get(`/api/customers/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching customer ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Lấy customer theo accountId
+  getCustomerByAccountId: async (accountId: number) => {
+    try {
+      const response = await apiClient.get(`/api/customers/by-account/${accountId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching customer by account ${accountId}:`, error);
+      throw error;
+    }
+  },
+
+  // Tạo customer mới
+  createCustomer: async (data: any) => {
+    try {
+      const response = await apiClient.post('/api/customers', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      throw error;
+    }
+  },
+
+  // Cập nhật customer
+  updateCustomer: async (id: number, data: any) => {
+    try {
+      const response = await apiClient.put(`/api/customers/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating customer ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Xóa customer
+  deleteCustomer: async (id: number) => {
+    try {
+      const response = await apiClient.delete(`/api/customers/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting customer ${id}:`, error);
+      throw error;
+    }
+  }
+};
+
+// MoMo API endpoints
+export const momoApi = {
+  // Tạo yêu cầu thanh toán MoMo
+  createPayment: async (data: {
+    amount: string;
+    orderId: string;
+    orderInfo: string;
+    paymentMethod?: string;
+  }) => {
+    try {
+      const response = await apiClient.post('/api/momo/create-payment', {
+        amount: data.amount,
+        orderId: data.orderId,
+        orderInfo: data.orderInfo,
+        paymentMethod: data.paymentMethod || "momo"
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating MoMo payment:', error);
+      throw error;
+    }
+  },
+
+  // Xử lý callback từ MoMo
+  handleCallback: async (query: any) => {
+    try {
+      const response = await apiClient.get('/api/momo/callback', { params: query });
+      return response.data;
+    } catch (error) {
+      console.error('Error handling MoMo callback:', error);
       throw error;
     }
   }
@@ -503,4 +804,6 @@ export const api = {
   skinTest: skinTestApi,
   skinTestQuestions: skinTestQuestionApi,
   timeSlots: timeSlotsApi,
+  customers: customerApi,
+  momo: momoApi,
 };

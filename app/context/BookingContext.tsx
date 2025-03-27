@@ -1,65 +1,26 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext } from "react";
+import { useBooking, BookingState } from "@/lib/hooks/useBooking";
 
-// Định nghĩa kiểu dữ liệu đặt lịch
-interface BookingData {
-  service?: { name: string; id: string };
-  specialist?: {
-    id: number;
-    name: string;
-    role: string;
-    experience: string;
-    rating: number;
-    reviews: number;
-    image: string;
-    availability: string[];
-    specialties: string[];
-  };
-  dateTime?: string;
-  paymentMethod?: string;
-  confirmData?: any;
-}
+const BookingContext = createContext<ReturnType<typeof useBooking> | undefined>(
+  undefined
+);
 
-// Định nghĩa type cho Booking Context
-interface BookContextType {
-  bookingData: BookingData;
-  setBookingData: (data: Partial<BookingData>) => void;
-  resetBooking: () => void;
-}
-
-// Tạo Context
-const BookContext = createContext<BookContextType | undefined>(undefined);
-
-// Provider bọc toàn bộ app
-const BookProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [bookingData, setBookingDataState] = useState<BookingData>({});
-
-  // Hàm cập nhật dữ liệu đặt lịch
-  const setBookingData = (newData: Partial<BookingData>) => {
-    setBookingDataState((prev) => ({ ...prev, ...newData }));
-  };
-
-  // Hàm reset toàn bộ dữ liệu đặt lịch
-  const resetBooking = () => {
-    setBookingDataState({});
-  };
-
+export function BookingProvider({ children }: { children: React.ReactNode }) {
+  const bookingHook = useBooking();
   return (
-    <BookContext.Provider value={{ bookingData, setBookingData, resetBooking }}>
+    <BookingContext.Provider value={bookingHook}>
       {children}
-    </BookContext.Provider>
+    </BookingContext.Provider>
   );
-};
+}
 
-// Custom Hook để sử dụng context dễ dàng
-export const useBook = () => {
-  const context = useContext(BookContext);
+export function useBookingContext() {
+  const context = useContext(BookingContext);
   if (!context) {
-    throw new Error("⚠️ useBook phải được sử dụng trong BookProvider");
+    throw new Error("useBookingContext must be used within BookingProvider");
   }
   return context;
-};
+}
 
-// ✅ **Default Export**
-export default BookProvider;
+export type { BookingState };
+export default BookingProvider;

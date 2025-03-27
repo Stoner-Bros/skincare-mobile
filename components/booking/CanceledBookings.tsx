@@ -1,21 +1,22 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import BookingCard from "./BookingCards";
+import { View, FlatList, RefreshControl, Text, StyleSheet } from "react-native";
+import { BookingCard } from "./BookingCards";
+import type { BookingItem } from "@/lib/types/api";
 
-const canceledBookings = [
-  {
-    id: 5,
-    specialist: "Jazy Dewo",
-    service: "Deep Tissue Massage",
-    date: "Aug 5",
-    time: "11:00 AM",
-    status: "canceled",
-    image: "https://v0.dev/placeholder.svg?height=100&width=100",
-  },
-];
+interface CanceledBookingsProps {
+  bookings: BookingItem[];
+  isLoading: boolean;
+  onRefresh: () => void;
+  onViewDetail: (id: number) => void;
+}
 
-export default function CanceledBookings() {
-  if (canceledBookings.length === 0) {
+export default function CanceledBookings({
+  bookings,
+  isLoading,
+  onRefresh,
+  onViewDetail,
+}: CanceledBookingsProps) {
+  if (bookings.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No canceled bookings</Text>
@@ -24,11 +25,17 @@ export default function CanceledBookings() {
   }
 
   return (
-    <View style={styles.container}>
-      {canceledBookings.map((booking) => (
-        <BookingCard key={booking.id} {...booking} status="canceled" />
-      ))}
-    </View>
+    <FlatList
+      data={bookings}
+      keyExtractor={(item) => item.bookingId.toString()}
+      renderItem={({ item }) => (
+        <BookingCard booking={item} onViewDetail={onViewDetail} />
+      )}
+      refreshControl={
+        <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+      }
+      contentContainerStyle={styles.container}
+    />
   );
 }
 
@@ -40,7 +47,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: 20,
   },
   emptyText: {
     fontSize: 16,

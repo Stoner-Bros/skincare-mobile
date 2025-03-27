@@ -17,6 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/lib/api/endpoints";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
+import { AccountUpdateRequest } from "@/lib/types/api";
 interface UserProfileData {
   fullName: string;
   avatar: string;
@@ -24,6 +25,7 @@ interface UserProfileData {
   address: string;
   dob: string;
   otherInfo: string;
+  email: string;
 }
 
 const EditProfileScreen = () => {
@@ -39,50 +41,75 @@ const EditProfileScreen = () => {
     address: "",
     dob: "",
     otherInfo: "",
+    email: "",
   });
 
-  // Lấy thông tin người dùng hiện tại
+  // Thêm useEffect để load dữ liệu từ AsyncStorage khi component mount
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const loadStoredProfile = async () => {
       try {
         setLoading(true);
-        setError("");
+        const storedProfile = await AsyncStorage.getItem("userProfile");
 
-        // Kiểm tra token
-        const token = await AsyncStorage.getItem("authToken");
-        if (!token) {
-          router.push("/(auth)/login");
-          return;
+        if (storedProfile) {
+          const parsedProfile = JSON.parse(storedProfile);
+          setProfileData({
+            fullName: parsedProfile.fullName || "",
+            avatar: parsedProfile.avatar || "",
+            phone: parsedProfile.phone || "",
+            address: parsedProfile.address || "",
+            dob: parsedProfile.dob || "",
+            otherInfo: parsedProfile.otherInfo || "",
+            email: parsedProfile.email || "",
+          });
         }
 
-        // Lấy thông tin profile
+        // Sau đó load dữ liệu mới nhất từ API
         const response = await api.auth.getProfile();
-        console.log("Current profile data:", response);
+        console.log("API profile data:", response);
 
-        if (response && response.accountId) {
-          setUserId(response.accountId.toString());
+        if (response?.data) {
+          // Lưu accountId vào AsyncStorage
+          await AsyncStorage.setItem(
+            "accountId",
+            response.data.accountId.toString()
+          );
 
-          // Cập nhật form với dữ liệu hiện tại
-          setProfileData({
-            fullName: response.accountInfo?.fullName || "",
-            avatar: response.accountInfo?.avatar || "",
-            phone: response.accountInfo?.phone || "",
-            address: response.accountInfo?.address || "",
-            dob: response.accountInfo?.dob || "",
-            otherInfo: response.accountInfo?.otherInfo || "",
-          });
-        } else {
-          setError("Không thể tải thông tin người dùng");
+          // Cập nhật state với dữ liệu mới nhất từ API
+          setProfileData((prevData) => ({
+            fullName: response.data.accountInfo.fullName || prevData.fullName,
+            avatar: response.data.accountInfo.avatar || prevData.avatar,
+            phone: response.data.accountInfo.phone || prevData.phone,
+            address: response.data.accountInfo.address || prevData.address,
+            dob: response.data.accountInfo.dob || prevData.dob,
+            otherInfo:
+              response.data.accountInfo.otherInfo || prevData.otherInfo,
+            email: response.data.accountInfo.email || prevData.email,
+          }));
+
+          // Lưu lại vào AsyncStorage
+          await AsyncStorage.setItem(
+            "userProfile",
+            JSON.stringify({
+              fullName: response.data.accountInfo.fullName,
+              avatar: response.data.accountInfo.avatar,
+              phone: response.data.accountInfo.phone,
+              address: response.data.accountInfo.address,
+              dob: response.data.accountInfo.dob,
+              otherInfo: response.data.accountInfo.otherInfo,
+              email: response.data.accountInfo.email,
+            })
+          );
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("Error loading profile:", error);
         setError("Đã xảy ra lỗi khi tải thông tin người dùng");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserProfile();
+    loadStoredProfile();
   }, []);
 
   // Xử lý chọn ảnh từ thư viện
@@ -142,46 +169,89 @@ const EditProfileScreen = () => {
 
   // Xử lý khi người dùng lưu thay đổi
   const handleSaveProfile = async () => {
-    if (!userId) {
-      setError("Không thể xác định người dùng");
-      return;
-    }
-
-    if (!profileData.fullName.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập họ tên");
-      return;
-    }
-
     try {
       setSaving(true);
 
+      if (!profileData.fullName.trim()) {
+        Alert.alert("Lỗi", "Vui lòng nhập họ tên");
+        return;
+      }
+
+      const accountId = await AsyncStorage.getItem("accountId");
+      if (!accountId) {
+        throw new Error("No account ID found");
+      }
+
+      // Format lại date
+      const formattedDob = profileData.dob?.trim()
+        ? profileData.dob.trim().replace(/\s+/g, "").replace(/\-+/g, "-")
+        : null;
+
       // Chuẩn bị dữ liệu để cập nhật
       const updateData = {
-        fullName: profileData.fullName,
-        avatar: profileData.avatar,
-        phone: profileData.phone,
-        address: profileData.address,
-        dob: profileData.dob,
-        otherInfo: profileData.otherInfo,
+        fullName: profileData.fullName.trim(),
+        avatar: profileData.avatar || null,
+        phone: profileData.phone?.trim() || null,
+        address: profileData.address?.trim() || null,
+        dob: formattedDob,
+        otherInfo: profileData.otherInfo?.trim() || null,
       };
 
-      console.log("Updating profile with data:", updateData);
-      console.log("User ID:", userId);
+      console.log("Sending update data:", updateData);
 
-      // Gọi API cập nhật thông tin
-      const response = await api.accounts.updateAccount(userId, updateData);
-      console.log("Update response:", response);
+      // Gọi API update
+      const updateResponse = await api.accounts.updateAccount(
+        Number(accountId),
+        updateData
+      );
 
-      if (response && response.status === 200) {
-        Alert.alert("Thành công", "Thông tin cá nhân đã được cập nhật", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
-      } else {
-        setError("Không thể cập nhật thông tin");
+      if (updateResponse) {
+        // Sau khi update thành công, gọi API get profile để lấy thông tin mới nhất
+        const profileResponse = await api.auth.getProfile();
+        console.log("New profile data:", profileResponse);
+
+        if (profileResponse?.data) {
+          // Cập nhật state với dữ liệu mới nhất
+          setProfileData({
+            fullName: profileResponse.data.accountInfo.fullName || "",
+            avatar: profileResponse.data.accountInfo.avatar || "",
+            phone: profileResponse.data.accountInfo.phone || "",
+            address: profileResponse.data.accountInfo.address || "",
+            dob: profileResponse.data.accountInfo.dob || "",
+            otherInfo: profileResponse.data.accountInfo.otherInfo || "",
+            email: profileResponse.data.accountInfo.email || "",
+          });
+
+          // Lưu thông tin mới vào AsyncStorage
+          await AsyncStorage.setItem(
+            "userProfile",
+            JSON.stringify({
+              fullName: profileResponse.data.accountInfo.fullName,
+              avatar: profileResponse.data.accountInfo.avatar,
+              phone: profileResponse.data.accountInfo.phone,
+              address: profileResponse.data.accountInfo.address,
+              dob: profileResponse.data.accountInfo.dob,
+              otherInfo: profileResponse.data.accountInfo.otherInfo,
+              email: profileResponse.data.accountInfo.email,
+            })
+          );
+
+          Alert.alert(
+            "Thành công",
+            "Thông tin cá nhân đã được cập nhật thành công",
+            [{ text: "OK", onPress: () => router.back() }]
+          );
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
-      setError("Đã xảy ra lỗi khi cập nhật thông tin");
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Đã xảy ra lỗi khi cập nhật thông tin";
+
+      Alert.alert("Thông báo", errorMessage);
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -280,7 +350,7 @@ const EditProfileScreen = () => {
           />
 
           <TextInput
-            label="Ngày sinh (YYYY-MM-DD)"
+            label="Ngày sinh"
             value={profileData.dob}
             onChangeText={(text) =>
               setProfileData({ ...profileData, dob: text })
@@ -288,7 +358,8 @@ const EditProfileScreen = () => {
             mode="outlined"
             style={styles.input}
             left={<TextInput.Icon icon="calendar" />}
-            placeholder="Ví dụ: 1990-01-31"
+            placeholder="YYYY-MM-DD"
+            keyboardType="numbers-and-punctuation"
           />
 
           <TextInput

@@ -1,30 +1,23 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import BookingCard from "./BookingCards";
+import { View, FlatList, RefreshControl, Text, StyleSheet } from "react-native";
 
-const upcomingBookings = [
-  {
-    id: 1,
-    specialist: "Jazy Dewo",
-    service: "Deep Tissue Massage",
-    date: "Mon, Aug 15",
-    time: "10:00 AM",
-    status: "upcoming",
-    image: "https://v0.dev/placeholder.svg?height=100&width=100",
-  },
-  {
-    id: 2,
-    specialist: "Sarah Johnson",
-    service: "Swedish Massage",
-    date: "Wed, Aug 17",
-    time: "2:00 PM",
-    status: "upcoming",
-    image: "https://v0.dev/placeholder.svg?height=100&width=100",
-  },
-];
+import type { BookingItem } from "@/lib/types/api";
+import { BookingCard } from "./BookingCards";
 
-export default function UpcomingBookings() {
-  if (upcomingBookings.length === 0) {
+interface UpcomingBookingsProps {
+  bookings: BookingItem[];
+  isLoading: boolean;
+  onRefresh: () => void;
+  onViewDetail: (id: number) => void;
+}
+
+export default function UpcomingBookings({
+  bookings,
+  isLoading,
+  onRefresh,
+  onViewDetail,
+}: UpcomingBookingsProps) {
+  if (bookings.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No upcoming bookings</Text>
@@ -33,11 +26,17 @@ export default function UpcomingBookings() {
   }
 
   return (
-    <View style={styles.container}>
-      {upcomingBookings.map((booking) => (
-        <BookingCard key={booking.id} {...booking} status="upcoming" />
-      ))}
-    </View>
+    <FlatList
+      data={bookings}
+      keyExtractor={(item) => item.bookingId.toString()}
+      renderItem={({ item }) => (
+        <BookingCard booking={item} onViewDetail={onViewDetail} />
+      )}
+      refreshControl={
+        <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+      }
+      contentContainerStyle={styles.container}
+    />
   );
 }
 
@@ -49,7 +48,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: 20,
   },
   emptyText: {
     fontSize: 16,

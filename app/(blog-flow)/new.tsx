@@ -16,6 +16,15 @@ import * as ImagePicker from "expo-image-picker";
 import { api } from "@/lib/api/endpoints";
 import type { BlogCreationRequest } from "@/lib/types/api";
 import { UIImagePickerPresentationStyle } from "expo-image-picker";
+import { Dropdown } from "react-native-element-dropdown";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// Thêm constant cho tags
+const BLOG_TAGS = [
+  { label: "Tips Làm đẹp", value: "Tips Làm đẹp" },
+  { label: "Tin Tức", value: "Tin Tức" },
+  { label: "Trải nghiệm dịch vụ", value: "Trải nghiệm dịch vụ" },
+];
 
 const NewBlog = () => {
   const router = useRouter();
@@ -23,6 +32,7 @@ const NewBlog = () => {
   const [content, setContent] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const handleImagePick = async () => {
     try {
@@ -106,18 +116,40 @@ const NewBlog = () => {
 
     try {
       setLoading(true);
+
+      // Lấy token từ AsyncStorage
+      const token = await AsyncStorage.getItem("accessToken");
+
+      if (!token) {
+        Alert.alert("Error", "Please login to create blog");
+        router.push("/login");
+        return;
+      }
+
       const blogData: BlogCreationRequest = {
         title: title.trim(),
         content: content.trim(),
         thumbnailUrl: thumbnailUrl || undefined,
+        tags: selectedTags.join(","),
       };
 
-      const response = await api.blogs.createBlog(blogData);
+      // Thêm token vào header của request
+      const response = await api.blogs.createBlog(blogData, token);
+
       Alert.alert("Success", "Your blog has been created successfully", [
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error: any) {
       console.error("Error creating blog:", error);
+
+      // Kiểm tra nếu là lỗi 401 thì redirect về trang login
+      if (error.response?.status === 401) {
+        Alert.alert("Session Expired", "Please login again", [
+          { text: "OK", onPress: () => router.push("/login") },
+        ]);
+        return;
+      }
+
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to create blog"
@@ -167,6 +199,83 @@ const NewBlog = () => {
             }}
             underlineColor="transparent"
           />
+
+          {/* Tags Dropdown */}
+          <View className="mb-4">
+            <Text className="text-gray-600 mb-2">Select Tags</Text>
+            <Dropdown
+              style={{
+                height: 50,
+                borderColor: "#e2e8f0",
+                borderWidth: 1,
+                borderRadius: 8,
+                paddingHorizontal: 8,
+              }}
+              placeholderStyle={{
+                color: "#94a3b8",
+              }}
+              selectedTextStyle={{
+                color: "#1a1a1a",
+              }}
+              data={BLOG_TAGS}
+              maxHeight={300}
+              labelField="label"
+              valueField="value"
+              placeholder="Choose tags"
+              value={selectedTags}
+              onChange={(item) => {
+                setSelectedTags((prev) => {
+                  // Nếu tag đã được chọn, remove nó
+                  if (prev.includes(item.value)) {
+                    return prev.filter((tag) => tag !== item.value);
+                  }
+                  // Nếu chưa có, thêm vào
+                  return [...prev, item.value];
+                });
+              }}
+              multiple={true}
+              renderItem={(item) => (
+                <View
+                  style={{
+                    padding: 16,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ color: "#1a1a1a" }}>{item.label}</Text>
+                  {selectedTags.includes(item.value) && (
+                    <Ionicons name="checkmark" size={20} color="#A83F98" />
+                  )}
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Selected Tags Display */}
+          {selectedTags.length > 0 && (
+            <View className="flex-row flex-wrap gap-2 mb-4">
+              {selectedTags.map((tag) => {
+                const tagLabel = BLOG_TAGS.find((t) => t.value === tag)?.label;
+                return (
+                  <View
+                    key={tag}
+                    className="bg-purple-100 px-3 py-1 rounded-full flex-row items-center"
+                  >
+                    <Text className="text-purple-700">{tagLabel}</Text>
+                    <TouchableOpacity
+                      onPress={() =>
+                        setSelectedTags((prev) => prev.filter((t) => t !== tag))
+                      }
+                      className="ml-2"
+                    >
+                      <Ionicons name="close-circle" size={16} color="#A83F98" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
           {/* Image Picker */}
           <TouchableOpacity onPress={handleImagePick} className="mb-4">

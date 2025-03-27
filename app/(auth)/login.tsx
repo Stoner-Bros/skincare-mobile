@@ -24,51 +24,67 @@ const Login = () => {
       setLoading(true);
       setError("");
 
-      // Log request data
-      console.log("Login attempt with:", { email, password });
-      console.log("API URL:", process.env.EXPO_PUBLIC_API_URL_MOCKAPI);
-
       const response = await api.auth.login({
         email,
         password,
       });
 
-      // Log full response
       console.log("Login response:", response);
 
-      // Cấu trúc mới từ API: response = {data: {accessToken, refreshToken}, message, status}
       if (response?.data?.accessToken) {
-        await AsyncStorage.setItem("authToken", response.data.accessToken);
-        if (response.data.refreshToken) {
-          await AsyncStorage.setItem(
-            "refreshToken",
-            response.data.refreshToken
-          );
+        const token = response.data.accessToken;
+
+        // Validate token trước khi lưu
+        try {
+          const validateResponse = await api.auth.validateToken(token);
+          console.log("Token validation response:", validateResponse);
+
+          if (validateResponse?.status === 200) {
+            // Token hợp lệ, lưu token
+            await AsyncStorage.setItem("accessToken", token);
+            if (response.data.refreshToken) {
+              await AsyncStorage.setItem(
+                "refreshToken",
+                response.data.refreshToken
+              );
+            }
+
+            // Gọi API lấy profile với token đã validate
+            try {
+              const profileResponse = await api.auth.getProfile();
+              console.log("Profile response:", profileResponse);
+
+              if (profileResponse?.data) {
+                const userProfile = {
+                  email: profileResponse.data.email,
+                  fullName:
+                    profileResponse.data.fullName ||
+                    profileResponse.data.email.split("@")[0],
+                  phone: profileResponse.data.phone || "",
+                };
+                await AsyncStorage.setItem(
+                  "userProfile",
+                  JSON.stringify(userProfile)
+                );
+              }
+            } catch (profileError) {
+              console.error("Error fetching profile:", profileError);
+            }
+
+            router.push("/");
+          } else {
+            throw new Error("Invalid token");
+          }
+        } catch (validateError) {
+          console.error("Token validation error:", validateError);
+          setError("Authentication failed. Please try again.");
         }
-        router.push("/");
       } else {
-        console.log("Response without token:", response);
         setError("Login response missing token");
       }
     } catch (error: any) {
-      console.error("Login error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        headers: error.response?.headers,
-      });
-
-      if (error?.response?.status === 401) {
-        setError("Invalid email or password. Please try again.");
-      } else if (error?.response?.data?.message) {
-        setError(error.response.data.message);
-      } else if (error?.message) {
-        setError(error.message);
-      } else {
-        setError(
-          "Unable to login. Please check your internet connection and try again."
-        );
-      }
+      console.error("Login error:", error);
+      setError(error?.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }

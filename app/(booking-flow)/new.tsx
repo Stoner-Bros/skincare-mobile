@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,216 +16,83 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useBook } from "@/app/context/BookingContext";
-import type { Service } from "@/lib/types/api";
+import { Image as ExpoImage } from "expo-image";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { api } from "@/lib/api/endpoints";
+import type { Treatment } from "@/lib/types/api";
 
 // Dữ liệu mẫu cho các dịch vụ
-const services = [
-  {
-    id: 1,
-    name: "Facial Treatments",
-    description: "Revitalize your skin with our premium facial treatments",
-    image:
-      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=2070",
-    treatments: [
-      { id: 101, name: "Deep Cleansing Facial", duration: "60 min", price: 89 },
-      { id: 102, name: "Anti-Aging Facial", duration: "75 min", price: 119 },
-      { id: 103, name: "Hydrating Facial", duration: "60 min", price: 99 },
-      { id: 104, name: "Acne Treatment", duration: "45 min", price: 79 },
-    ],
-  },
-  {
-    id: 2,
-    name: "Massage Therapy",
-    description: "Relax and rejuvenate with our therapeutic massages",
-    image:
-      "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=2070",
-    treatments: [
-      { id: 201, name: "Swedish Massage", duration: "60 min", price: 99 },
-      { id: 202, name: "Deep Tissue Massage", duration: "60 min", price: 109 },
-      { id: 203, name: "Hot Stone Massage", duration: "75 min", price: 129 },
-      { id: 204, name: "Aromatherapy Massage", duration: "60 min", price: 119 },
-    ],
-  },
-  {
-    id: 3,
-    name: "Body Treatments",
-    description: "Pamper your body with our luxurious treatments",
-    image:
-      "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?q=80&w=1974",
-    treatments: [
-      { id: 301, name: "Body Scrub", duration: "45 min", price: 79 },
-      { id: 302, name: "Body Wrap", duration: "60 min", price: 99 },
-      { id: 303, name: "Detox Treatment", duration: "75 min", price: 119 },
-      { id: 304, name: "Cellulite Treatment", duration: "60 min", price: 109 },
-    ],
-  },
-  {
-    id: 4,
-    name: "Hair Removal",
-    description: "Smooth skin with our professional hair removal services",
-    image:
-      "https://images.unsplash.com/photo-1560750588-73207b1ef5b5?q=80&w=2070",
-    treatments: [
-      { id: 401, name: "Full Leg Waxing", duration: "45 min", price: 69 },
-      { id: 402, name: "Brazilian Waxing", duration: "30 min", price: 59 },
-      { id: 403, name: "Laser Hair Removal", duration: "60 min", price: 199 },
-      { id: 404, name: "Eyebrow Threading", duration: "15 min", price: 29 },
-    ],
-  },
-];
-
-// Dữ liệu mẫu cho các địa điểm
-const locations = [
-  {
-    id: 1,
-    name: "Downtown Spa",
-    address: "123 Main Street, New York, NY",
-    rating: 4.8,
-    reviews: 245,
-    image:
-      "https://images.unsplash.com/photo-1600334129128-685c5582fd35?q=80&w=2070",
-  },
-  {
-    id: 2,
-    name: "Serenity Wellness Center",
-    address: "456 Park Avenue, New York, NY",
-    rating: 4.7,
-    reviews: 189,
-    image:
-      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=2070",
-  },
-  {
-    id: 3,
-    name: "Harmony Day Spa",
-    address: "789 Broadway, New York, NY",
-    rating: 4.9,
-    reviews: 312,
-    image:
-      "https://images.unsplash.com/photo-1519415510236-718bdfcd89c8?q=80&w=2070",
-  },
-];
-
-interface ServiceCategory {
-  id: number;
-  name: string;
-  description: string;
-  image: string;
-  treatments: {
-    id: number;
-    name: string;
-    duration: string;
-    price: number;
-  }[];
-}
-
-interface Location {
-  id: number;
-  name: string;
-  address: string;
-  rating: number;
-  reviews: number;
-  image: string;
-}
 
 export default function NewBooking() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [services, setServices] = useState<ServiceCategory[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedService, setSelectedService] = useState<number | null>(null);
-  const [selectedTreatment, setSelectedTreatment] = useState<string | null>(
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(
     null
   );
-  const [selectedLocation, setSelectedLocation] = useState<number | null>(null);
-  const [treatments, setTreatments] = useState<Service[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
-  const { setBookingData } = useBook();
-
-  // Load data từ mockApi
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        setLoading(true);
-        const [servicesRes, locationsRes] = await Promise.all([
-          mockApi.services.getCategories(),
-          mockApi.locations.getBranches(),
-        ]);
-        setServices(servicesRes.data || []);
-        setLocations(locationsRes.data || []);
-      } catch (error) {
-        console.error("Error loading initial data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadInitialData();
+    loadTreatments();
   }, []);
 
-  // Load treatments khi chọn service
-  useEffect(() => {
-    const loadTreatments = async () => {
-      if (selectedService) {
-        try {
-          const response = await mockApi.services.getTreatments(
-            selectedService
-          );
-          setTreatments(response.data || []);
-        } catch (error) {
-          console.error("Error loading treatments:", error);
-        }
-      } else {
-        setTreatments([]);
+  const loadTreatments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.treatments.getTreatments();
+      if (response.data?.items) {
+        setTreatments(response.data.items);
       }
-    };
+    } catch (error: any) {
+      setError(error.message || "Failed to load treatments");
+      console.error("Error loading treatments:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadTreatments();
-  }, [selectedService]);
-
-  // Get treatment details
-  const treatmentDetails = selectedTreatment
-    ? treatments.find((t) => t.id === selectedTreatment)
-    : null;
-
-  // Get location details
-  const locationDetails = selectedLocation
-    ? locations.find((l) => l.id === selectedLocation)
-    : null;
-
-  // Kiểm tra xem có thể tiếp tục không
-  const canContinue = selectedService && selectedTreatment && selectedLocation;
-
-  // Handle continue button press
-  const handleContinue = () => {
-    if (selectedService && selectedTreatment && selectedLocation) {
-      const selectedServiceData = services.find(
-        (s) => s.id === selectedService
+  const handleSelectTreatment = async (treatment: Treatment) => {
+    try {
+      setSelectedTreatment(treatment);
+      // Lưu treatment đã chọn vào AsyncStorage
+      await AsyncStorage.setItem(
+        "selectedTreatment",
+        JSON.stringify({
+          treatmentId: treatment.treatmentId,
+          name: treatment.treatmentName,
+          duration: treatment.duration,
+          price: treatment.price,
+          imageUrl: treatment.treatmentThumbnailUrl,
+          description: treatment.description,
+        })
       );
-      const selectedTreatmentData = treatments.find(
-        (t) => t.id === selectedTreatment
-      );
-      const selectedLocationData = locations.find(
-        (l) => l.id === selectedLocation
-      );
+    } catch (error) {
+      console.error("Error saving treatment to AsyncStorage:", error);
+    }
+  };
 
-      if (
-        !selectedServiceData ||
-        !selectedTreatmentData ||
-        !selectedLocationData
-      ) {
-        return;
+  const filterTreatments = (category: string) => {
+    setSelectedCategory(category);
+    // Implement filtering logic here if needed
+  };
+
+  const handleContinue = async () => {
+    if (selectedTreatment) {
+      try {
+        // Lưu booking state vào AsyncStorage trước khi chuyển trang
+        await AsyncStorage.setItem(
+          "bookingState",
+          JSON.stringify({
+            treatmentId: selectedTreatment.treatmentId,
+            treatment: selectedTreatment,
+          })
+        );
+        router.push("/(booking-flow)/specialist");
+      } catch (error) {
+        console.error("Error saving booking state:", error);
       }
-
-      setBookingData({
-        service: {
-          id: selectedTreatmentData.id,
-          name: selectedTreatmentData.name,
-        },
-      });
-
-      router.push("/(booking-flow)/specialist");
     }
   };
 
@@ -238,191 +105,82 @@ export default function NewBooking() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="#333" />
-        <Text style={styles.backButtonText}>Quay lại</Text>
-      </TouchableOpacity>
-
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Book a Treatment</Text>
-        <Text style={styles.subtitle}>Select a service to get started</Text>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search treatments, services..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={20} color="#666" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.servicesSection}>
-        <Text style={styles.sectionTitle}>Popular Services</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.servicesContainer}
-        >
-          {services.map((service) => (
-            <TouchableOpacity
-              key={service.id}
-              style={[
-                styles.serviceCard,
-                selectedService === service.id && styles.selectedServiceCard,
-              ]}
-              onPress={() => {
-                setSelectedService(service.id);
-                setSelectedTreatment(null);
-              }}
-            >
-              <Image
-                source={{ uri: service.image }}
-                style={styles.serviceImage}
-                resizeMode="cover"
-              />
-              <LinearGradient
-                colors={["transparent", "rgba(0,0,0,0.7)"]}
-                style={styles.gradient}
-              />
-              <View style={styles.serviceContent}>
-                <Text style={styles.serviceName}>{service.name}</Text>
-                <Text style={styles.serviceDescription}>
-                  {service.description}
-                </Text>
-              </View>
-              {selectedService === service.id && (
-                <View style={styles.selectedIndicator}>
-                  <Ionicons name="checkmark-circle" size={24} color="#2ecc71" />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {selectedService && (
-        <View style={styles.treatmentsSection}>
-          <Text style={styles.sectionTitle}>Select Treatment</Text>
-          <View style={styles.treatmentsContainer}>
-            {treatments.map((treatment) => (
-              <TouchableOpacity
-                key={treatment.id}
-                style={[
-                  styles.treatmentCard,
-                  selectedTreatment === treatment.id &&
-                    styles.selectedTreatmentCard,
-                ]}
-                onPress={() => setSelectedTreatment(treatment.id)}
-              >
-                <View style={styles.treatmentInfo}>
-                  <Text style={styles.treatmentName}>{treatment.name}</Text>
-                  <View style={styles.treatmentDetails}>
-                    <View style={styles.treatmentDetail}>
-                      <Ionicons name="time-outline" size={16} color="#666" />
-                      <Text style={styles.treatmentDetailText}>
-                        {treatment.duration} min
-                      </Text>
-                    </View>
-                    <View style={styles.treatmentDetail}>
-                      <Ionicons name="cash-outline" size={16} color="#666" />
-                      <Text style={styles.treatmentDetailText}>
-                        ${treatment.price}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.radioButton}>
-                  {selectedTreatment === treatment.id && (
-                    <View style={styles.radioButtonSelected} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {selectedTreatment && (
-        <View style={styles.locationsSection}>
-          <Text style={styles.sectionTitle}>Select Location</Text>
-          <View style={styles.locationsContainer}>
-            {locations.map((location) => (
-              <TouchableOpacity
-                key={location.id}
-                style={[
-                  styles.locationCard,
-                  selectedLocation === location.id &&
-                    styles.selectedLocationCard,
-                ]}
-                onPress={() => setSelectedLocation(location.id)}
-              >
-                <Image
-                  source={{ uri: location.image }}
-                  style={styles.locationImage}
-                />
-                <View style={styles.locationInfo}>
-                  <Text style={styles.locationName}>{location.name}</Text>
-                  <Text style={styles.locationAddress}>{location.address}</Text>
-                  <View style={styles.locationRating}>
-                    <Ionicons name="star" size={16} color="#FFD700" />
-                    <Text style={styles.ratingText}>{location.rating}</Text>
-                    <Text style={styles.reviewsText}>
-                      ({location.reviews} reviews)
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.radioButton}>
-                  {selectedLocation === location.id && (
-                    <View style={styles.radioButtonSelected} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {treatmentDetails && locationDetails && (
-        <View style={styles.summarySection}>
-          <Text style={styles.sectionTitle}>Booking Summary</Text>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Treatment:</Text>
-              <Text style={styles.summaryValue}>{treatmentDetails.name}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Duration:</Text>
-              <Text style={styles.summaryValue}>
-                {treatmentDetails.duration} min
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Price:</Text>
-              <Text style={styles.summaryValue}>${treatmentDetails.price}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Location:</Text>
-              <Text style={styles.summaryValue}>{locationDetails.name}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.continueButtonContainer}>
         <TouchableOpacity
-          style={[styles.continueButton, !canContinue && styles.disabledButton]}
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Select Treatment</Text>
+      </View>
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadTreatments}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <ScrollView style={styles.treatmentsContainer}>
+        {treatments.map((treatment) => (
+          <TouchableOpacity
+            key={treatment.treatmentId}
+            style={[
+              styles.treatmentCard,
+              selectedTreatment?.treatmentId === treatment.treatmentId &&
+                styles.selectedCard,
+            ]}
+            onPress={() => handleSelectTreatment(treatment)}
+          >
+            <Image
+              source={{ uri: treatment.treatmentThumbnailUrl }}
+              style={styles.treatmentImage}
+              contentFit="cover"
+              transition={200}
+            />
+            <View style={styles.treatmentInfo}>
+              <Text style={styles.treatmentName}>
+                {treatment.treatmentName}
+              </Text>
+              <Text style={styles.treatmentDescription} numberOfLines={2}>
+                {treatment.description}
+              </Text>
+              <View style={styles.treatmentDetails}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="time-outline" size={16} color="#666" />
+                  <Text style={styles.detailText}>
+                    {treatment.duration} min
+                  </Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Ionicons name="cash-outline" size={16} color="#666" />
+                  <Text style={styles.detailText}>${treatment.price}</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.radioContainer}>
+              <View style={styles.radioButton}>
+                {selectedTreatment?.treatmentId === treatment.treatmentId && (
+                  <View style={styles.radioButtonSelected} />
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[
+            styles.continueButton,
+            !selectedTreatment && styles.disabledButton,
+          ]}
           onPress={handleContinue}
-          disabled={!canContinue}
+          disabled={!selectedTreatment}
         >
           <Text style={styles.continueButtonText}>
             Continue to Select Specialist
@@ -430,9 +188,7 @@ export default function NewBooking() {
           <Ionicons name="arrow-forward" size={20} color="white" />
         </TouchableOpacity>
       </View>
-
-      <View style={styles.spacer} />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -441,138 +197,124 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
   header: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  servicesSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  servicesContainer: {
-    paddingRight: 20,
-    paddingVertical: 8,
-  },
-  serviceCard: {
-    width: 280,
-    height: 180,
-    borderRadius: 16,
-    marginRight: 16,
-    overflow: "hidden",
-    position: "relative",
-  },
-  selectedServiceCard: {
-    borderWidth: 2,
-    borderColor: "#2ecc71",
-  },
-  serviceImage: {
-    width: "100%",
-    height: "100%",
-  },
-  gradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "50%",
-  },
-  serviceContent: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f1f1",
   },
-  serviceName: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 4,
+  backButton: {
+    padding: 8,
+    marginRight: 16,
   },
-  serviceDescription: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 14,
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
   },
-  selectedIndicator: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    backgroundColor: "white",
+  errorContainer: {
+    margin: 16,
+    padding: 16,
+    backgroundColor: "#fee2e2",
     borderRadius: 12,
-    padding: 2,
+    alignItems: "center",
   },
-  treatmentsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+  errorText: {
+    color: "#dc2626",
+    marginBottom: 8,
+  },
+  retryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#dc2626",
+    borderRadius: 8,
+  },
+  retryText: {
+    color: "white",
+    fontWeight: "600",
+  },
+  categorySection: {
+    paddingVertical: 16,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 20,
+    marginHorizontal: 8,
+  },
+  activeCategoryChip: {
+    backgroundColor: "#2ecc71",
+  },
+  categoryText: {
+    color: "#666",
+  },
+  activeCategoryText: {
+    color: "white",
+    fontWeight: "600",
   },
   treatmentsContainer: {
-    gap: 12,
+    flex: 1,
+    padding: 16,
   },
   treatmentCard: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#f1f1f1",
+    overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  selectedTreatmentCard: {
-    backgroundColor: "#e8f8f0",
+  selectedCard: {
     borderColor: "#2ecc71",
+    backgroundColor: "#e8f8f0",
+  },
+  treatmentImage: {
+    width: 100,
+    height: 100,
   },
   treatmentInfo: {
     flex: 1,
+    padding: 12,
   },
   treatmentName: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  treatmentDescription: {
+    fontSize: 14,
+    color: "#666",
     marginBottom: 8,
   },
   treatmentDetails: {
     flexDirection: "row",
     gap: 16,
   },
-  treatmentDetail: {
+  detailItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
-  treatmentDetailText: {
+  detailText: {
     fontSize: 14,
     color: "#666",
+  },
+  radioContainer: {
+    justifyContent: "center",
+    paddingRight: 12,
   },
   radioButton: {
     width: 24,
@@ -589,85 +331,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#2ecc71",
   },
-  locationsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  locationsContainer: {
-    gap: 12,
-  },
-  locationCard: {
-    flexDirection: "row",
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#f1f1f1",
-  },
-  selectedLocationCard: {
-    backgroundColor: "#e8f8f0",
-    borderColor: "#2ecc71",
-  },
-  locationImage: {
-    width: 100,
-    height: 100,
-  },
-  locationInfo: {
-    flex: 1,
-    padding: 12,
-    justifyContent: "center",
-  },
-  locationName: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  locationAddress: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-  },
-  locationRating: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginLeft: 4,
-  },
-  reviewsText: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 4,
-  },
-  summarySection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  summaryCard: {
-    backgroundColor: "#f9f9f9",
+  footer: {
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#f1f1f1",
-  },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  summaryLabel: {
-    fontSize: 16,
-    color: "#666",
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  continueButtonContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f1f1",
+    backgroundColor: "#fff",
   },
   continueButton: {
     backgroundColor: "#2ecc71",
@@ -679,32 +347,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   disabledButton: {
-    backgroundColor: "#cccccc",
+    backgroundColor: "#ccc",
   },
   continueButtonText: {
     color: "white",
     fontSize: 16,
     fontWeight: "600",
-  },
-  spacer: {
-    height: 100,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    paddingBottom: 0,
-  },
-  backButtonText: {
-    fontSize: 16,
-    marginLeft: 8,
-    color: "#333",
-    fontWeight: "500",
   },
 });

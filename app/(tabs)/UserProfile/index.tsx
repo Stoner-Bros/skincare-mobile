@@ -17,7 +17,11 @@ import { api } from "@/lib/api/endpoints";
 
 // Helper function để xử lý navigation với type safety
 const navigateTo = (router: ReturnType<typeof useRouter>, path: string) => {
-  router.push(path as any);
+  if (path === "edit") {
+    router.push("/UserProfile/edit"); // Sửa đường dẫn chính xác
+  } else {
+    router.push(path as any);
+  }
 };
 
 interface UserProfile {
@@ -75,23 +79,18 @@ const ProfileScreen = () => {
     setError("");
 
     try {
-      // Kiểm tra token
-      const token = await AsyncStorage.getItem("authToken");
+      // Sửa "authToken" thành "accessToken"
+      const token = await AsyncStorage.getItem("accessToken");
       if (!token) {
-        // Nếu không có token, chuyển về trang login
         router.push("/(auth)/login");
         return;
       }
 
-      // Gọi API để lấy thông tin profile
       const response = await api.auth.getProfile();
       console.log("Profile response:", response);
 
       if (response && response.data) {
-        // Định dạng dữ liệu từ API response
         const userData = response.data;
-
-        // Tạo đối tượng profile từ dữ liệu API
         const userProfile: UserProfile = {
           fullName: userData.fullName || "Người dùng",
           email: userData.email || "",
@@ -104,6 +103,8 @@ const ProfileScreen = () => {
         };
 
         setProfile(userProfile);
+        // Lưu profile vào AsyncStorage
+        await AsyncStorage.setItem("userProfile", JSON.stringify(userProfile));
       } else {
         setError("Không thể tải thông tin người dùng");
       }
@@ -133,7 +134,7 @@ const ProfileScreen = () => {
             // Vẫn tiếp tục xóa token ngay cả khi API lỗi
           } finally {
             // Xóa token lưu trữ
-            await AsyncStorage.removeItem("authToken");
+            await AsyncStorage.removeItem("accessToken");
             await AsyncStorage.removeItem("refreshToken");
             // Chuyển đến trang login
             router.push("/(auth)/login");
@@ -222,7 +223,7 @@ const ProfileScreen = () => {
 
           <TouchableOpacity
             style={styles.editProfileButton}
-            onPress={() => navigateTo(router, "edit")}
+            onPress={() => router.push("/(tabs)/UserProfile/edit")}
           >
             <Text style={styles.editProfileText}>Chỉnh sửa</Text>
           </TouchableOpacity>

@@ -18,6 +18,7 @@ import type {
   SkinTest as SkinTestType,
   SkinTestAnswerRequest,
 } from "@/lib/types/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -80,12 +81,126 @@ export default function SkinTestScreen() {
   const [guestId, setGuestId] = useState<number | null>(null);
   const [currentAnswer, setCurrentAnswer] = useState<string | null>(null);
   const [answerId, setAnswerId] = useState<number | null>(null);
+  const [customerInfo, setCustomerInfo] = useState<{
+    customerId: number | null;
+    email: string;
+    fullName: string;
+    phone: string;
+  }>({
+    customerId: null,
+    email: "",
+    fullName: "",
+    phone: "",
+  });
+  const [resultStatus, setResultStatus] = useState<
+    "loading" | "success" | "error" | null
+  >(null);
 
   useEffect(() => {
+    loadCustomerInfo();
     loadSkinTest();
-    // Generate random guestId for anonymous users
-    setGuestId(Math.floor(Math.random() * 1000000));
   }, []);
+
+  const loadCustomerInfo = async () => {
+    try {
+      // Thử lấy profile từ API trước
+      const profileResponse = await api.auth.getProfile();
+      console.log("Account Profile from API:", profileResponse);
+
+      // Kiểm tra nếu có data từ API
+      if (profileResponse?.data?.accountId) {
+        const customerInfo = {
+          customerId: profileResponse.data.accountId, // Lấy accountId từ response data
+          email: profileResponse.data.email || "",
+          fullName: profileResponse.data.accountInfo?.fullName || "",
+          phone: profileResponse.data.accountInfo?.phone || "0353066296",
+        };
+
+        console.log("Setting customer info from API:", customerInfo);
+        setCustomerInfo(customerInfo);
+        return;
+      }
+
+      // Fallback to AsyncStorage nếu không có data từ API
+      const profileData = await AsyncStorage.getItem("userProfile");
+      console.log("Profile Data from AsyncStorage:", profileData);
+
+      if (profileData) {
+        const profile = JSON.parse(profileData);
+        console.log("Parsed Profile from Storage:", profile);
+
+        // Nếu không có accountId trong storage, thử lấy lại từ API
+        if (!profile.accountId) {
+          try {
+            const apiProfile = await api.auth.getProfile();
+            if (apiProfile?.data?.accountId) {
+              profile.accountId = apiProfile.data.accountId;
+            }
+          } catch (error) {
+            console.error("Error getting accountId from API:", error);
+          }
+        }
+
+        const customerInfo = {
+          customerId: profile.accountId, // Sử dụng accountId từ storage hoặc API
+          email: profile.email || "",
+          fullName: profile.fullName || "",
+          phone: profile.phone || "0353066296",
+        };
+
+        console.log("Setting customer info from Storage:", customerInfo);
+        setCustomerInfo(customerInfo);
+
+        // Update storage với accountId mới nếu cần
+        if (profile.accountId) {
+          await AsyncStorage.setItem(
+            "userProfile",
+            JSON.stringify({
+              ...profile,
+              accountId: profile.accountId,
+            })
+          );
+        }
+      } else {
+        console.log("No profile data found");
+        // Thử lấy lại từ API một lần nữa
+        try {
+          const apiProfile = await api.auth.getProfile();
+          if (apiProfile?.data?.accountId) {
+            const customerInfo = {
+              customerId: apiProfile.data.accountId,
+              email: apiProfile.data.email || "",
+              fullName: apiProfile.data.accountInfo?.fullName || "",
+              phone: apiProfile.data.accountInfo?.phone || "0353066296",
+            };
+            setCustomerInfo(customerInfo);
+
+            // Lưu vào storage
+            await AsyncStorage.setItem(
+              "userProfile",
+              JSON.stringify(customerInfo)
+            );
+          }
+        } catch (error) {
+          console.error("Final attempt to get profile failed:", error);
+          setCustomerInfo({
+            customerId: null,
+            email: "",
+            fullName: "",
+            phone: "0353066296",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error in loadCustomerInfo:", error);
+      setCustomerInfo({
+        customerId: null,
+        email: "",
+        fullName: "",
+        phone: "0353066296",
+      });
+    }
+  };
 
   const loadSkinTest = async () => {
     try {
@@ -117,79 +232,129 @@ export default function SkinTestScreen() {
     }
   };
 
+  // Thêm hàm format tên
+  const formatFullName = (name: string) => {
+    // Loại bỏ khoảng trắng thừa và chuyển đổi thành title case
+    return name
+      .trim()
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   const handleAnswer = async (answer: string) => {
-    // Kiểm tra nếu đã trả lời đủ số câu hỏi
     if (answers.length >= questions.length) {
       console.log("All questions answered");
       return;
     }
 
-    // Set câu trả lời hiện tại
     setCurrentAnswer(answer);
 
-    // Delay một chút để người dùng thấy được lựa chọn của mình
     setTimeout(async () => {
-      console.log("Selected answer:", answer);
-      const newAnswers = [...answers, answer.slice(-1)]; // Chỉ lấy ký tự cuối (A, B, C, D)
-      setAnswers(newAnswers);
-      setCurrentAnswer(null); // Reset current answer
+      const answerLetter = answer.slice(-1);
+      console.log("Answer letter:", answerLetter);
 
-      // Nếu là câu hỏi cuối cùng thì submit
+      const newAnswers = [...answers, answerLetter];
+      setAnswers(newAnswers);
+      setCurrentAnswer(null);
+
       if (currentQuestion === questions.length - 1) {
         try {
           setLoading(true);
 
-          // Format lại answers theo đúng yêu cầu API
+          // Log thông tin customer trước khi submit
+          console.log("Current customer info:", customerInfo);
+
+          // Validate dữ liệu trước khi gửi
+          if (!customerInfo.email) {
+            setResult("Email is required");
+            return;
+          }
+
+          if (!customerInfo.fullName) {
+            setResult("Full name is required");
+            return;
+          }
+
+          // Thêm validation cho customerId
+          if (!customerInfo.customerId) {
+            console.warn("Customer ID is missing, attempting to get from API");
+            try {
+              // Thử lấy lại thông tin customer
+              const profileResponse = await api.auth.getProfile();
+              if (profileResponse?.accountId) {
+                const customerResponse =
+                  await api.customers.getCustomerByAccountId(
+                    profileResponse.accountId
+                  );
+                if (customerResponse) {
+                  setCustomerInfo((prev) => ({
+                    ...prev,
+                    customerId: customerResponse.customerId,
+                  }));
+                }
+              }
+            } catch (error) {
+              console.error("Failed to fetch customer ID:", error);
+            }
+          }
+
           const submitData = {
             skinTestId: currentTest?.skinTestId || 0,
-            customerId: null, // Thêm trường này
-            guestId: guestId || 0,
-            answers: newAnswers, // ["A", "B", "C", "D"]
+            customerId: customerInfo.customerId, // Đảm bảo có customerId
+            email: customerInfo.email.trim(),
+            fullName: customerInfo.fullName.trim(),
+            phone: customerInfo.phone.trim() || "0353066296",
+            answers: newAnswers.map((ans) => ans.toUpperCase()),
           };
 
-          console.log("Submitting answers:", submitData);
+          // Log để debug
+          console.log("Customer info before submit:", customerInfo);
+          console.log("Submit data:", submitData);
 
-          // Gọi API submit answers
-          const response = await api.skinTest.submitAnswers(submitData);
-          console.log("Submit response:", response);
+          // Kiểm tra lại một lần nữa trước khi gửi
+          if (!submitData.customerId) {
+            setResult(
+              "Error: Customer ID is required. Please try again or contact support."
+            );
+            return;
+          }
 
-          // Nếu submit thành công, lấy kết quả ngay từ response
-          if (response?.skinTestAnswerId) {
-            try {
-              // Gọi API lấy kết quả
+          try {
+            setResultStatus("loading");
+            const response = await api.skinTest.submitAnswers(submitData);
+            console.log("Submit success:", response);
+
+            if (response?.skinTestAnswerId) {
               const resultResponse = await api.skinTest.getResult(
                 response.skinTestAnswerId
               );
               console.log("Result response:", resultResponse);
-
-              if (resultResponse?.result) {
-                setResult(resultResponse.result);
-              } else {
-                setResult("Could not get your result. Please try again.");
-              }
-            } catch (resultError) {
-              console.error("Error getting result:", resultError);
-              setResult("Error getting your result. Please try again.");
+              setResult(resultResponse?.result || "Could not get result");
+              setResultStatus("success");
             }
+          } catch (error: any) {
+            console.error("Submit error:", error);
+            setResultStatus("error");
+
+            // Parse error message nếu là JSON
+            let errorMessage = error.message;
+            try {
+              const errorData = JSON.parse(error.message);
+              errorMessage = Object.entries(errorData)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join("\n");
+            } catch {
+              // Nếu không parse được JSON thì giữ nguyên message
+            }
+
+            setResult(`Error: ${errorMessage}`);
           }
-        } catch (error: any) {
-          console.error("Error submitting answers:", error);
-          // Hiển thị lỗi chi tiết hơn
-          const errorMessage =
-            error.response?.data?.message ||
-            error.message ||
-            "Unknown error occurred";
-          console.log("Error details:", {
-            status: error.response?.status,
-            data: error.response?.data,
-            message: errorMessage,
-          });
-          setResult(`Error: ${errorMessage}`);
         } finally {
           setLoading(false);
         }
       } else {
-        // Chuyển sang câu hỏi tiếp theo
         setCurrentQuestion(currentQuestion + 1);
       }
     }, 500);
@@ -303,13 +468,81 @@ export default function SkinTestScreen() {
             {questions.length > 0 && renderQuestion(questions[currentQuestion])}
           </ScrollView>
         ) : (
-          <View style={styles.resultContainer}>
-            <Text style={styles.resultTitle}>Your Skin Analysis Result</Text>
-            <Text style={styles.resultText}>{result}</Text>
-            <TouchableOpacity style={styles.retakeButton} onPress={resetQuiz}>
-              <Text style={styles.retakeButtonText}>Retake Test</Text>
-            </TouchableOpacity>
-          </View>
+          <ScrollView style={styles.quizContainer}>
+            <View style={styles.resultContainer}>
+              <Text style={styles.resultTitle}>Your Skin Analysis Result</Text>
+
+              {resultStatus === "loading" ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#A83F98" />
+                  <Text style={styles.loadingText}>
+                    Analyzing your skin type...
+                  </Text>
+                </View>
+              ) : resultStatus === "error" ? (
+                <>
+                  <Text style={styles.resultText}>{result}</Text>
+                  <Text style={styles.resultSubText}>
+                    Don't worry! You can try the test again or check your email
+                    for the results later.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.retakeButton}
+                    onPress={resetQuiz}
+                  >
+                    <Text style={styles.retakeButtonText}>Retake Test</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.resultText}>{result}</Text>
+                  <View style={styles.resultActionsContainer}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.primaryButton]}
+                      onPress={() => router.push("/recommended-products")}
+                    >
+                      <Text style={styles.actionButtonText}>
+                        View Recommended Products
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.secondaryButton]}
+                      onPress={resetQuiz}
+                    >
+                      <Text
+                        style={[
+                          styles.actionButtonText,
+                          styles.secondaryButtonText,
+                        ]}
+                      >
+                        Retake Test
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.outlineButton]}
+                      onPress={() => router.push("/skin-guide")}
+                    >
+                      <Text
+                        style={[
+                          styles.actionButtonText,
+                          styles.outlineButtonText,
+                        ]}
+                      >
+                        Read Skin Care Guide
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.emailNote}>
+                    We've sent detailed results to your email. Check your inbox
+                    for personalized skin care recommendations!
+                  </Text>
+                </>
+              )}
+            </View>
+          </ScrollView>
         )}
       </LinearGradient>
     </View>
@@ -441,6 +674,16 @@ const styles = StyleSheet.create({
   resultContainer: {
     padding: 20,
     alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   resultTitle: {
     fontSize: 24,
@@ -482,5 +725,51 @@ const styles = StyleSheet.create({
   },
   selectedOptionText: {
     color: "white",
+  },
+  resultActionsContainer: {
+    width: "100%",
+    gap: 12,
+    marginTop: 24,
+  },
+  actionButton: {
+    padding: 16,
+    borderRadius: 30,
+    width: "100%",
+    alignItems: "center",
+  },
+  primaryButton: {
+    backgroundColor: "#A83F98",
+  },
+  secondaryButton: {
+    backgroundColor: "#f6e7ff",
+  },
+  outlineButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#A83F98",
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
+  },
+  secondaryButtonText: {
+    color: "#A83F98",
+  },
+  outlineButtonText: {
+    color: "#A83F98",
+  },
+  resultSubText: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginVertical: 12,
+  },
+  emailNote: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 24,
+    fontStyle: "italic",
   },
 });

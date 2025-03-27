@@ -1,30 +1,22 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import BookingCard from "./BookingCards";
+import { View, FlatList, RefreshControl, Text, StyleSheet } from "react-native";
+import { BookingCard } from "./BookingCards";
+import type { BookingItem } from "@/lib/types/api";
 
-const pastBookings = [
-  {
-    id: 3,
-    specialist: "Jazy Dewo",
-    service: "Hot Stone Massage",
-    date: "Jul 30",
-    time: "3:00 PM",
-    status: "past",
-    image: "https://v0.dev/placeholder.svg?height=100&width=100",
-  },
-  {
-    id: 4,
-    specialist: "Sarah Johnson",
-    service: "Swedish Massage",
-    date: "Jul 25",
-    time: "1:00 PM",
-    status: "past",
-    image: "https://v0.dev/placeholder.svg?height=100&width=100",
-  },
-];
+interface PastBookingsProps {
+  bookings: BookingItem[];
+  isLoading: boolean;
+  onRefresh: () => void;
+  onViewDetail: (id: number) => void;
+}
 
-export default function PastBookings() {
-  if (pastBookings.length === 0) {
+export default function PastBookings({
+  bookings,
+  isLoading,
+  onRefresh,
+  onViewDetail,
+}: PastBookingsProps) {
+  if (bookings.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No past bookings</Text>
@@ -33,11 +25,17 @@ export default function PastBookings() {
   }
 
   return (
-    <View style={styles.container}>
-      {pastBookings.map((booking) => (
-        <BookingCard key={booking.id} {...booking} status="past" />
-      ))}
-    </View>
+    <FlatList
+      data={bookings}
+      keyExtractor={(item) => item.bookingId.toString()}
+      renderItem={({ item }) => (
+        <BookingCard booking={item} onViewDetail={onViewDetail} />
+      )}
+      refreshControl={
+        <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+      }
+      contentContainerStyle={styles.container}
+    />
   );
 }
 
@@ -49,7 +47,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: 20,
   },
   emptyText: {
     fontSize: 16,

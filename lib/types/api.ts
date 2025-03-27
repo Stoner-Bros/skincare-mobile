@@ -43,7 +43,14 @@ export interface AccountInfo {
   dob: string;
   otherInfo: string;
 }
-
+export interface AccountUpdateRequest {
+  fullName: string;
+  avatar: string;
+  phone: string;
+  address: string;
+  dob: string;
+  otherInfo: string;
+}
 // Specialist Types
 export interface Specialist {
   id: string;
@@ -375,8 +382,10 @@ export interface SkinTest {
 
 export interface SkinTestAnswerRequest {
   skinTestId: number;
-  customerId?: number | null;
-  guestId: number;
+  customerId?: number;
+  email: string;
+  fullName: string;
+  phone: string;
   answers: string[]; // ["A", "B", "C", "D"]
 }
 
@@ -438,4 +447,47 @@ export interface TimeSlotsResponse {
   status: number;
   message: string;
   data: TimeSlot[];
+}
+
+// Thêm các interface mới cho booking flow
+export interface BookingCreationRequest {
+  email: string;
+  phone?: string;
+  fullName: string;
+  treatmentId: number;
+  skinTherapistId?: number | null;
+  notes?: string;
+  date: string;
+  timeSlotIds: number[];
+  paymentMethod: string;
+}
+
+export interface BookingUpdateRequest {
+  skinTherapistId?: number;
+  staffId?: number;
+  status?: string;
+  checkinAt?: string;
+  checkoutAt?: string;
+}
+
+export interface BookingResponse {
+  bookingId: number;
+  email: string;
+  phone: string;
+  fullName: string;
+  treatmentId: number;
+  skinTherapistId?: number;
+  status: string;
+  notes?: string;
+  timeSlots: TimeSlot[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BookingHistoryResponse {
+  items: BookingResponse[];
+  pageNumber: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages: number;
 }

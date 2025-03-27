@@ -15,6 +15,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import QRCode from "react-native-qrcode-svg";
+import MomoPayment from "@/components/payment/MomoPayment";
 
 export default function Checkout() {
   const router = useRouter();
@@ -155,6 +156,16 @@ Please show this to our staff when you arrive.
     } catch (error) {
       console.error("Error sharing booking details:", error);
     }
+  };
+
+  const handlePaymentSuccess = () => {
+    // Xử lý khi thanh toán thành công
+    console.log("Payment successful");
+  };
+
+  const handlePaymentError = (error: any) => {
+    // Xử lý khi thanh toán thất bại
+    console.error("Payment failed:", error);
   };
 
   const renderPaymentStep = () => (
@@ -413,6 +424,16 @@ Please show this to our staff when you arrive.
         </View>
 
         {renderCurrentStep()}
+
+        {/* Component thanh toán MoMo */}
+        <MomoPayment
+          amount={bookingDetails?.total || 0}
+          orderInfo={`Payment for ${
+            bookingDetails?.treatment || "Deep Tissue Massage (60 min)"
+          }`}
+          onSuccess={handlePaymentSuccess}
+          onError={handlePaymentError}
+        />
       </ScrollView>
     </SafeAreaView>
   );
