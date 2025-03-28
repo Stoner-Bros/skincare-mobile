@@ -62,7 +62,7 @@ const RegisterScreen = () => {
             );
           }
           alert("Registration successful! You are now logged in.");
-          router.push("/");
+          router.push("/login");
         }
         // Option 2: Redirect to login
         else {

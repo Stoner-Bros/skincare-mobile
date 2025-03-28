@@ -18,10 +18,16 @@ import axios from "axios";
 
 // Helper function để xử lý navigation với type safety
 const navigateTo = (router: ReturnType<typeof useRouter>, path: string) => {
-  if (path === "edit") {
-    router.push("/UserProfile/edit"); // Sửa đường dẫn chính xác
-  } else {
-    router.push(path as any);
+  try {
+    // Kiểm tra nếu là route edit profile
+    if (path.includes("edit")) {
+      router.push("/(tabs)/UserProfile/edit");
+    } else {
+      router.push(path);
+    }
+  } catch (error) {
+    console.error("Navigation error:", error);
+    Alert.alert("Lỗi", "Không thể chuyển trang. Vui lòng thử lại sau.");
   }
 };
 
@@ -46,31 +52,31 @@ const ProfileScreen = () => {
       icon: "calendar-outline",
       title: "Lịch đặt của tôi",
       description: "Xem và quản lý các lịch đặt của bạn",
-      route: "bookings", // Đường dẫn tương đối
+      route: "/(tabs)/UserProfile/bookings", // Thêm đường dẫn đầy đủ
     },
     {
       icon: "card-outline",
       title: "Thanh toán",
       description: "Quản lý phương thức thanh toán và lịch sử",
-      route: "payments",
+      route: "/(tabs)/UserProfile/payments",
     },
     {
       icon: "notifications-outline",
       title: "Thông báo",
       description: "Thiết lập thông báo và cảnh báo",
-      route: "notifications",
+      route: "/(tabs)/UserProfile/notifications",
     },
     {
       icon: "settings-outline",
       title: "Cài đặt",
       description: "Chỉnh sửa thông tin cá nhân và mật khẩu",
-      route: "settings",
+      route: "/(tabs)/UserProfile/settings",
     },
     {
       icon: "headset-outline",
       title: "Hỗ trợ",
       description: "Liên hệ với đội ngũ hỗ trợ của chúng tôi",
-      route: "support",
+      route: "/(tabs)/UserProfile/support",
     },
   ];
 

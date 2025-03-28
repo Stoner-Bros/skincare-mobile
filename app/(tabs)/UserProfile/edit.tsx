@@ -236,11 +236,21 @@ const EditProfileScreen = () => {
             })
           );
 
-          Alert.alert(
-            "Thành công",
-            "Thông tin cá nhân đã được cập nhật thành công",
-            [{ text: "OK", onPress: () => router.back() }]
-          );
+          // Hiển thị toast thành công
+          Toast.show({
+            type: "success",
+            text1: "Thành công",
+            text2: "Thông tin cá nhân đã được cập nhật",
+            visibilityTime: 2000,
+            autoHide: true,
+            topOffset: 30,
+            bottomOffset: 40,
+          });
+
+          // Đợi toast hiển thị xong rồi mới chuyển trang
+          setTimeout(() => {
+            router.push("/");
+          }, 1000);
         }
       }
     } catch (error: any) {

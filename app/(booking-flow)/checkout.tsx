@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import QRCode from "react-native-qrcode-svg";
 import MomoPayment from "@/components/payment/MomoPayment";
+import * as Linking from "expo-linking";
 
 export default function Checkout() {
   const router = useRouter();
@@ -65,26 +66,62 @@ export default function Checkout() {
     loadDetails();
   }, [params]);
 
-  const processPayment = () => {
-    setIsLoading(true);
-    setCurrentStep(2);
+  const handleMomoPayment = async (momoResponse: any) => {
+    try {
+      if (momoResponse?.qrCodeUrl) {
+        const canOpen = await Linking.canOpenURL(momoResponse.qrCodeUrl);
 
-    // For cash payments, we skip the processing step
-    if (paymentDetails?.type === "Cash") {
-      setTimeout(() => {
-        setCurrentStep(3);
-        setIsLoading(false);
-      }, 1000);
-    } else {
-      // For card payments, simulate payment processing
-      setTimeout(() => {
-        setCurrentStep(3);
+        if (canOpen) {
+          await Linking.openURL(momoResponse.qrCodeUrl);
+        } else {
+          // Fallback nếu không mở được app MoMo
+          if (momoResponse.payUrl) {
+            await Linking.openURL(momoResponse.payUrl);
+          } else {
+            Alert.alert(
+              "Error",
+              "Cannot open MoMo app. Please make sure MoMo is installed."
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error opening MoMo:", error);
+      Alert.alert("Error", "Failed to open MoMo payment. Please try again.");
+    }
+  };
 
-        // Simulate success after a delay
+  const processPayment = async () => {
+    try {
+      setIsLoading(true);
+      setCurrentStep(2);
+
+      if (paymentDetails?.type === "momo") {
+        // Giả sử response là dữ liệu MoMo bạn đã cung cấp
+        const momoResponse = {
+          qrCodeUrl:
+            "momo://app?action=payWithApp&isScanQR=true&revampAutoPick=false&serviceType=qr&sid=TU9NT3wxMVNTMjAyNTAzMjgwNjIyMjc&v=3.0",
+          payUrl:
+            "https://test-payment.momo.vn/v2/gateway/pay?t=TU9NT3wxMVNTMjAyNTAzMjgwNjIyMjc&s=af3b1c7d09af915a3f9324a627dd795990b4dcd6f8e869af23e4729ac3b4d5f8",
+        };
+
+        await handleMomoPayment(momoResponse);
+        setCurrentStep(3);
+      } else if (paymentDetails?.type === "Cash") {
         setTimeout(() => {
+          setCurrentStep(3);
           setIsLoading(false);
         }, 1000);
-      }, 2000);
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      Alert.alert(
+        "Payment Error",
+        "Failed to process payment. Please try again."
+      );
+      setCurrentStep(1);
+    } finally {
+      setIsLoading(false);
     }
   };
 

@@ -56,6 +56,16 @@ export default function NewBooking() {
   const handleSelectTreatment = async (treatment: Treatment) => {
     try {
       setSelectedTreatment(treatment);
+
+      // Xử lý thumbnail URL
+      const thumbnailUrl = treatment.treatmentThumbnailUrl
+        ? treatment.treatmentThumbnailUrl.startsWith("http")
+          ? treatment.treatmentThumbnailUrl
+          : `https://skincare-api.azurewebsites.net/api/upload/${treatment.treatmentThumbnailUrl}`
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            treatment.treatmentName || "Treatment"
+          )}&background=random&color=fff&size=256`;
+
       // Lưu treatment đã chọn vào AsyncStorage
       await AsyncStorage.setItem(
         "selectedTreatment",
@@ -64,7 +74,7 @@ export default function NewBooking() {
           name: treatment.treatmentName,
           duration: treatment.duration,
           price: treatment.price,
-          imageUrl: treatment.treatmentThumbnailUrl,
+          imageUrl: thumbnailUrl,
           description: treatment.description,
         })
       );
@@ -137,7 +147,15 @@ export default function NewBooking() {
             onPress={() => handleSelectTreatment(treatment)}
           >
             <Image
-              source={{ uri: treatment.treatmentThumbnailUrl }}
+              source={{
+                uri: treatment.treatmentThumbnailUrl
+                  ? treatment.treatmentThumbnailUrl.startsWith("http")
+                    ? treatment.treatmentThumbnailUrl
+                    : `https://skincare-api.azurewebsites.net/api/upload/${treatment.treatmentThumbnailUrl}`
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      treatment.treatmentName || "Treatment"
+                    )}&background=random&color=fff&size=256`,
+              }}
               style={styles.treatmentImage}
               contentFit="cover"
               transition={200}

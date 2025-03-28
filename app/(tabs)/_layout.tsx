@@ -8,6 +8,7 @@ import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { AntDesign, Entypo } from "@expo/vector-icons";
 import ChatSupportButton from "@/components/common/ChatSupportButton";
+import Toast from "react-native-toast-message";
 
 export default function TabLayout() {
   const activeColor = "#A83F98";
@@ -81,6 +82,7 @@ export default function TabLayout() {
           headerShown: false,
         }}
       />
+      <Toast />
     </Tabs>
   );
 }

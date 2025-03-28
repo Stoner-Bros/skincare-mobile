@@ -96,6 +96,8 @@ export default function SkinTestScreen() {
   const [resultStatus, setResultStatus] = useState<
     "loading" | "success" | "error" | "waiting" | "pending" | null
   >(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 12; // Số lần thử tối đa (1 phút với interval 5 giây)
 
   useEffect(() => {
     loadCustomerInfo();
@@ -274,47 +276,58 @@ export default function SkinTestScreen() {
             answers: newAnswers.map((ans) => ans.toUpperCase()),
           };
 
-          // Submit câu trả lời và nhận về answerId
           const submitResponse = await api.skinTest.submitAnswers(submitData);
-          console.log("Submit response:", submitResponse);
 
           if (submitResponse?.answerId) {
             setAnswerId(submitResponse.answerId);
-
-            // Hiển thị thông báo chờ kết quả
+            setResultStatus("waiting");
             setResult(
               "Cảm ơn bạn đã hoàn thành bài test. Chuyên gia của chúng tôi đang phân tích kết quả của bạn."
             );
-            setResultStatus("waiting");
 
-            // Ngay lập tức thử lấy kết quả
+            // Thử lấy kết quả lần đầu
             try {
               const resultResponse = await api.skinTest.getTestResult(
                 submitResponse.answerId
               );
-              console.log("Result response:", resultResponse);
 
               if (resultResponse?.result) {
                 setResult(resultResponse.result);
                 setResultStatus("success");
               } else {
-                // Nếu chưa có kết quả, thiết lập interval để kiểm tra định kỳ
+                // Nếu chưa có kết quả, bắt đầu polling một cách im lặng
+                let retries = 0;
+                const maxRetries = 20;
+
                 const checkInterval = setInterval(async () => {
+                  if (retries >= maxRetries) {
+                    clearInterval(checkInterval);
+                    setResult(
+                      "Kết quả của bạn đang được chuyên gia phân tích. Chúng tôi sẽ gửi email thông báo khi có kết quả."
+                    );
+                    setResultStatus("pending");
+                    return;
+                  }
+
                   try {
                     const newResult = await api.skinTest.getTestResult(
                       submitResponse.answerId
                     );
+
                     if (newResult?.result) {
                       setResult(newResult.result);
                       setResultStatus("success");
                       clearInterval(checkInterval);
+                    } else {
+                      retries++;
                     }
-                  } catch (error) {
-                    console.error("Error checking result:", error);
+                  } catch {
+                    // Bỏ qua lỗi một cách im lặng
+                    retries++;
                   }
-                }, 5000); // Kiểm tra mỗi 5 giây
+                }, 5000);
 
-                // Dừng kiểm tra sau 1 phút
+                // Cleanup interval sau 1 phút
                 setTimeout(() => {
                   clearInterval(checkInterval);
                   if (resultStatus === "waiting") {
@@ -325,25 +338,24 @@ export default function SkinTestScreen() {
                   }
                 }, 60000);
 
+                // Hiển thị trạng thái chờ cho người dùng
                 setResult(
                   "Kết quả của bạn đang được chuyên gia phân tích. Vui lòng đợi trong giây lát..."
                 );
                 setResultStatus("waiting");
               }
-            } catch (error) {
-              console.error("Error getting initial result:", error);
+            } catch {
+              // Nếu có lỗi, chuyển sang trạng thái pending mà không hiển thị lỗi
               setResult(
                 "Kết quả của bạn đang được chuyên gia phân tích. Chúng tôi sẽ gửi email thông báo khi có kết quả."
               );
               setResultStatus("pending");
             }
-          } else {
-            throw new Error("Không nhận được answer ID từ server");
           }
-        } catch (error: any) {
+        } catch (error) {
           console.error("Submit error:", error);
           setResultStatus("error");
-          setResult(`Error: ${error.message}`);
+          setResult("Có lỗi xảy ra khi gửi bài test. Vui lòng thử lại sau.");
         } finally {
           setLoading(false);
         }

@@ -624,7 +624,7 @@ export const skinTestApi = {
       
       throw new Error("Invalid response format");
     } catch (error) {
-      console.error('Error getting test result:', error);
+      // console.error('Error getting test result:', error);
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         // Trường hợp chưa có kết quả
         return {

@@ -8,6 +8,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { TextInput } from "react-native-paper";
@@ -18,12 +19,17 @@ import type { BlogCreationRequest } from "@/lib/types/api";
 import { UIImagePickerPresentationStyle } from "expo-image-picker";
 import { Dropdown } from "react-native-element-dropdown";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Thêm constant cho tags
 const BLOG_TAGS = [
-  { label: "Tips Làm đẹp", value: "Tips Làm đẹp" },
-  { label: "Tin Tức", value: "Tin Tức" },
-  { label: "Trải nghiệm dịch vụ", value: "Trải nghiệm dịch vụ" },
+  { label: "Tips Làm đẹp", value: "Tips Làm đẹp", icon: "bulb-outline" },
+  { label: "Tin Tức", value: "Tin Tức", icon: "newspaper-outline" },
+  {
+    label: "Trải nghiệm dịch vụ",
+    value: "Trải nghiệm dịch vụ",
+    icon: "star-outline",
+  },
 ];
 
 const NewBlog = () => {
@@ -165,133 +171,52 @@ const NewBlog = () => {
       className="flex-1 bg-white"
     >
       <View className="flex-1">
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
-          <Text className="text-lg font-semibold">Create New Blog</Text>
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={loading}
-            className={`px-4 py-1.5 rounded-full ${
-              loading ? "bg-gray-100" : "bg-purple-600"
-            }`}
-          >
-            <Text className={loading ? "text-gray-400" : "text-white"}>
-              {loading ? "Posting..." : "Post"}
+        {/* Header mới với gradient */}
+        <LinearGradient colors={["#A83F98", "#7B2C8C"]} className="px-4 py-3">
+          <View className="flex-row items-center justify-between">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="bg-white/20 p-2 rounded-full"
+            >
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <Text className="text-lg font-semibold text-white">
+              Tạo Bài Viết Mới
             </Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView className="flex-1 p-4">
-          {/* Title Input */}
-          <TextInput
-            placeholder="Enter your title"
-            value={title}
-            onChangeText={setTitle}
-            mode="flat"
-            className="mb-4"
-            style={{
-              backgroundColor: "transparent",
-              fontSize: 24,
-              paddingHorizontal: 0,
-            }}
-            underlineColor="transparent"
-          />
-
-          {/* Tags Dropdown */}
-          <View className="mb-4">
-            <Text className="text-gray-600 mb-2">Select Tags</Text>
-            <Dropdown
-              style={{
-                height: 50,
-                borderColor: "#e2e8f0",
-                borderWidth: 1,
-                borderRadius: 8,
-                paddingHorizontal: 8,
-              }}
-              placeholderStyle={{
-                color: "#94a3b8",
-              }}
-              selectedTextStyle={{
-                color: "#1a1a1a",
-              }}
-              data={BLOG_TAGS}
-              maxHeight={300}
-              labelField="label"
-              valueField="value"
-              placeholder="Choose tags"
-              value={selectedTags}
-              onChange={(item) => {
-                setSelectedTags((prev) => {
-                  // Nếu tag đã được chọn, remove nó
-                  if (prev.includes(item.value)) {
-                    return prev.filter((tag) => tag !== item.value);
-                  }
-                  // Nếu chưa có, thêm vào
-                  return [...prev, item.value];
-                });
-              }}
-              multiple={true}
-              renderItem={(item) => (
-                <View
-                  style={{
-                    padding: 16,
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ color: "#1a1a1a" }}>{item.label}</Text>
-                  {selectedTags.includes(item.value) && (
-                    <Ionicons name="checkmark" size={20} color="#A83F98" />
-                  )}
-                </View>
-              )}
-            />
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={loading}
+              className={`px-4 py-1.5 rounded-full ${
+                loading ? "bg-white/30" : "bg-white"
+              }`}
+            >
+              <Text className={loading ? "text-white/70" : "text-purple-700"}>
+                {loading ? "Đang đăng..." : "Đăng bài"}
+              </Text>
+            </TouchableOpacity>
           </View>
+        </LinearGradient>
 
-          {/* Selected Tags Display */}
-          {selectedTags.length > 0 && (
-            <View className="flex-row flex-wrap gap-2 mb-4">
-              {selectedTags.map((tag) => {
-                const tagLabel = BLOG_TAGS.find((t) => t.value === tag)?.label;
-                return (
-                  <View
-                    key={tag}
-                    className="bg-purple-100 px-3 py-1 rounded-full flex-row items-center"
-                  >
-                    <Text className="text-purple-700">{tagLabel}</Text>
-                    <TouchableOpacity
-                      onPress={() =>
-                        setSelectedTags((prev) => prev.filter((t) => t !== tag))
-                      }
-                      className="ml-2"
-                    >
-                      <Ionicons name="close-circle" size={16} color="#A83F98" />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Image Picker */}
-          <TouchableOpacity onPress={handleImagePick} className="mb-4">
+        <ScrollView className="flex-1 px-4">
+          {/* Cover Image Section */}
+          <TouchableOpacity onPress={handleImagePick} className="mt-4 mb-6">
             {thumbnailUrl ? (
-              <View className="relative">
+              <View className="relative rounded-xl overflow-hidden">
                 <Image
                   source={{
                     uri: `https://skincare-api.azurewebsites.net/api/upload/${thumbnailUrl}`,
                   }}
-                  className="w-full h-48 rounded-lg"
+                  className="w-full h-56"
                   resizeMode="cover"
-                  onError={(error) => {
-                    console.error("Error loading image:", error);
-                    Alert.alert("Error", "Failed to load image preview");
-                  }}
                 />
+                <LinearGradient
+                  colors={["transparent", "rgba(0,0,0,0.7)"]}
+                  className="absolute bottom-0 left-0 right-0 p-4"
+                >
+                  <Text className="text-white text-sm">
+                    Nhấn để thay đổi ảnh bìa
+                  </Text>
+                </LinearGradient>
                 <TouchableOpacity
                   className="absolute top-2 right-2 bg-black/50 p-2 rounded-full"
                   onPress={() => setThumbnailUrl("")}
@@ -300,35 +225,102 @@ const NewBlog = () => {
                 </TouchableOpacity>
               </View>
             ) : (
-              <View className="flex-row items-center p-4 border border-dashed border-gray-300 rounded-lg">
-                <Ionicons name="image-outline" size={24} color="#666" />
-                <Text className="ml-2 text-gray-600">Add Cover Image</Text>
+              <View className="bg-purple-50 rounded-xl p-8 items-center justify-center border-2 border-dashed border-purple-200">
+                <Ionicons name="image-outline" size={40} color="#A83F98" />
+                <Text className="mt-2 text-purple-700 font-medium">
+                  Thêm ảnh bìa cho bài viết
+                </Text>
+                <Text className="text-purple-500 text-sm mt-1">
+                  Nhấn để chọn ảnh
+                </Text>
               </View>
             )}
           </TouchableOpacity>
 
-          {/* Content Input */}
+          {/* Title Input với style mới */}
           <TextInput
-            placeholder="Write your blog content..."
+            placeholder="Tiêu đề bài viết của bạn"
+            value={title}
+            onChangeText={setTitle}
+            mode="flat"
+            className="mb-4"
+            style={{
+              backgroundColor: "transparent",
+              fontSize: 24,
+              fontWeight: "600",
+              paddingHorizontal: 0,
+            }}
+            underlineColor="#E5E7EB"
+            placeholderTextColor="#9CA3AF"
+          />
+
+          {/* Tags Section với thiết kế mới */}
+          <Text className="text-gray-700 font-medium mb-3">
+            Chủ đề bài viết
+          </Text>
+          <View className="flex-row flex-wrap gap-2 mb-6">
+            {BLOG_TAGS.map((tag) => (
+              <TouchableOpacity
+                key={tag.value}
+                onPress={() => {
+                  setSelectedTags((prev) =>
+                    prev.includes(tag.value)
+                      ? prev.filter((t) => t !== tag.value)
+                      : [...prev, tag.value]
+                  );
+                }}
+                className={`flex-row items-center px-4 py-2 rounded-full ${
+                  selectedTags.includes(tag.value)
+                    ? "bg-purple-100 border-purple-300"
+                    : "bg-gray-50 border-gray-200"
+                } border`}
+              >
+                <Ionicons
+                  name={tag.icon as any}
+                  size={16}
+                  color={selectedTags.includes(tag.value) ? "#A83F98" : "#666"}
+                />
+                <Text
+                  className={`ml-2 ${
+                    selectedTags.includes(tag.value)
+                      ? "text-purple-700"
+                      : "text-gray-600"
+                  }`}
+                >
+                  {tag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Content Input với style mới */}
+          <TextInput
+            placeholder="Viết nội dung bài viết của bạn ở đây..."
             value={content}
             onChangeText={setContent}
             mode="flat"
             multiline
-            numberOfLines={10}
-            className="bg-transparent"
+            numberOfLines={12}
+            className="bg-gray-50 rounded-xl mb-8"
             style={{
-              backgroundColor: "transparent",
+              backgroundColor: "#F9FAFB",
               textAlignVertical: "top",
-              paddingHorizontal: 0,
+              padding: 16,
+              fontSize: 16,
+              lineHeight: 24,
             }}
             underlineColor="transparent"
           />
         </ScrollView>
 
+        {/* Loading Overlay với thiết kế mới */}
         {loading && (
           <View className="absolute inset-0 bg-black/30 items-center justify-center">
-            <View className="bg-white p-4 rounded-lg">
-              <Text>Creating blog...</Text>
+            <View className="bg-white p-6 rounded-2xl items-center">
+              <ActivityIndicator size="large" color="#A83F98" />
+              <Text className="mt-3 text-gray-700 font-medium">
+                Đang tạo bài viết...
+              </Text>
             </View>
           </View>
         )}

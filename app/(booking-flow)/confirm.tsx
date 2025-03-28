@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/lib/api/endpoints";
+import * as Linking from "expo-linking";
 
 const paymentMethods = [
   {
@@ -233,6 +234,49 @@ export default function BookingConfirmation() {
       .join(" ");
   };
 
+  const handleMomoCheckout = async (bookingResponse: any) => {
+    try {
+      if (bookingResponse?.qrCodeUrl) {
+        const canOpen = await Linking.canOpenURL(bookingResponse.qrCodeUrl);
+
+        if (canOpen) {
+          await Linking.openURL(bookingResponse.qrCodeUrl);
+          // Lưu thông tin booking để kiểm tra trạng thái sau
+          await AsyncStorage.setItem(
+            "pendingBooking",
+            JSON.stringify({
+              orderId: bookingResponse.orderId,
+              requestId: bookingResponse.requestId,
+              amount: bookingResponse.amount,
+            })
+          );
+
+          // Chuyển đến trang success với trạng thái pending
+          router.push({
+            pathname: "/(booking-flow)/success",
+            params: {
+              status: "pending",
+              orderId: bookingResponse.orderId,
+            },
+          });
+        } else {
+          // Fallback to payUrl if can't open MoMo app
+          if (bookingResponse.payUrl) {
+            await Linking.openURL(bookingResponse.payUrl);
+          } else {
+            throw new Error("Cannot open MoMo payment");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("MoMo payment error:", error);
+      Alert.alert(
+        "Payment Error",
+        "Failed to open MoMo payment. Please try again."
+      );
+    }
+  };
+
   const handleConfirm = async () => {
     try {
       console.log("1. Starting handleConfirm...");
@@ -281,51 +325,19 @@ export default function BookingConfirmation() {
       const response = await api.bookings.createBooking(bookingRequest);
 
       if (response?.data) {
-        console.log("14. Booking successful");
-        // Thêm thông tin chi tiết hơn về response
-        console.log("Booking response data:", response.data);
-
-        const bookingSummary = {
-          ...response.data,
-          treatmentName: treatment.name,
-          specialistName: specialist?.name || "Not selected",
-          date: bookingState.date,
-          price: treatment.price,
-          total: treatment.price,
-          // Thêm thông tin thanh toán
-          paymentMethod: selectedPayment,
-          // Thêm thông tin khách hàng
-          customerInfo: {
-            fullName: formatFullName(editedProfile.fullName),
-            email: userProfile.email,
-            phone: editedProfile.phone?.trim() || userProfile.phone || "",
-          },
-        };
-
-        await AsyncStorage.setItem(
-          "currentBooking",
-          JSON.stringify(bookingSummary)
-        );
-
-        console.log("15. Clearing old booking data");
-        await Promise.all([
-          AsyncStorage.removeItem("selectedTreatment"),
-          AsyncStorage.removeItem("selectedSpecialist"),
-          AsyncStorage.removeItem("bookingState"),
-        ]);
-
-        console.log("16. Navigating to success page");
-        router.push("/(booking-flow)/success");
+        if (selectedPayment === "momo") {
+          await handleMomoCheckout(response.data);
+        } else {
+          // Xử lý cho các phương thức thanh toán khác
+          router.push("/(booking-flow)/success");
+        }
       } else {
         console.log("17. No response data from API");
         throw new Error("No response from server");
       }
     } catch (error) {
-      console.error("Error in handleConfirm:", error);
-      Alert.alert(
-        "Booking Error",
-        error instanceof Error ? error.message : "Failed to create booking"
-      );
+      console.error("Booking error:", error);
+      Alert.alert("Error", "Failed to create booking. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -472,6 +484,37 @@ export default function BookingConfirmation() {
     </View>
   );
 
+  // Thêm hàm xử lý thoát
+  const handleExit = () => {
+    Alert.alert(
+      "Thoát đặt lịch",
+      "Bạn có chắc muốn thoát? Thông tin đặt lịch sẽ không được lưu.",
+      [
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+        {
+          text: "Thoát",
+          style: "destructive",
+          onPress: async () => {
+            // Xóa thông tin đặt lịch tạm thời
+            try {
+              await Promise.all([
+                AsyncStorage.removeItem("selectedTreatment"),
+                AsyncStorage.removeItem("selectedSpecialist"),
+                AsyncStorage.removeItem("bookingState"),
+              ]);
+              router.push("/(tabs)"); // Quay về trang chủ
+            } catch (error) {
+              console.error("Error clearing booking data:", error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -482,7 +525,9 @@ export default function BookingConfirmation() {
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Confirm Booking</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity onPress={handleExit} style={styles.exitButton}>
+          <Ionicons name="close-circle-outline" size={24} color="#FF3B30" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -828,5 +873,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     fontSize: 14,
+  },
+  exitButton: {
+    padding: 4,
+    width: 24, // Để cân đối với nút back
   },
 });

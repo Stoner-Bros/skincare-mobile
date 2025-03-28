@@ -17,7 +17,7 @@ import type { Specialist } from "../../lib/types/api";
 export default function SpecialistPage() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const [specialist, setSpecialist] = useState<Specialist | null>(null);
+  const [specialist, setSpecialist] = useState<SpecialistUI | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,10 +26,42 @@ export default function SpecialistPage() {
 
   const loadSpecialist = async () => {
     try {
-      const data = await api.specialists.getSpecialist(id as string);
-      setSpecialist(data);
+      const response = await api.specialists.getTherapist(Number(id));
+
+      // Kiểm tra và lấy data từ response
+      if (response?.data?.data) {
+        const therapistData = response.data.data;
+        const accountInfo = therapistData.account?.accountInfo;
+
+        // Xử lý avatar URL
+        const avatarUrl = accountInfo?.avatar
+          ? accountInfo.avatar.startsWith("http")
+            ? accountInfo.avatar
+            : `https://skincare-api.azurewebsites.net/api/upload/${accountInfo.avatar}`
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              accountInfo?.fullName || "Specialist"
+            )}&background=random&color=fff&size=256`;
+
+        setSpecialist({
+          id: therapistData.accountId,
+          fullName: accountInfo?.fullName || "Unknown Specialist",
+          specialization: therapistData.specialization || "",
+          avatar: avatarUrl,
+          experience: therapistData.experience || "",
+          bio: therapistData.bio || "",
+          rating: therapistData.rating || 0,
+          isAvailable: therapistData.isAvailable || false,
+          introduction: therapistData.introduction || "",
+          email: therapistData.account?.email || "",
+          phone: accountInfo?.phone || "",
+          address: accountInfo?.address || "",
+        });
+      } else {
+        throw new Error("Invalid response structure");
+      }
     } catch (error) {
       console.error("Error loading specialist:", error);
+      setSpecialist(null);
     } finally {
       setLoading(false);
     }
@@ -64,77 +96,40 @@ export default function SpecialistPage() {
               onPress={() => router.back()}
             />
           ),
-          title: specialist.name,
+          title: specialist?.fullName || "Specialist Details",
         }}
       />
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <Image source={{ uri: specialist.avatar }} style={styles.image} />
-          <Text style={styles.name}>{specialist.name}</Text>
-          <Text style={styles.specialty}>{specialist.role}</Text>
+          <Image source={{ uri: specialist?.avatar }} style={styles.image} />
+          <Text style={styles.name}>{specialist?.fullName}</Text>
+          <Text style={styles.specialty}>{specialist?.specialization}</Text>
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={20} color="#FFD700" />
-            <Text style={styles.rating}>{specialist.rating}</Text>
-            <Text style={styles.reviews}>
-              ({specialist.reviewCount} reviews)
-            </Text>
+            <Text style={styles.rating}>{specialist?.rating}</Text>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.bio}>{specialist.bio}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Specialties</Text>
-          <View style={styles.specialtiesContainer}>
-            {specialist.specialties.map((specialty) => (
-              <View key={specialty} style={styles.specialtyChip}>
-                <Text style={styles.specialtyText}>{specialty}</Text>
-              </View>
-            ))}
+        {specialist?.bio && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={styles.bio}>{specialist.bio}</Text>
           </View>
-        </View>
+        )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Languages</Text>
-          <View style={styles.languagesContainer}>
-            {specialist.languages.map((language) => (
-              <View key={language} style={styles.languageChip}>
-                <Text style={styles.languageText}>{language}</Text>
-              </View>
-            ))}
+        {specialist?.experience && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Experience</Text>
+            <Text style={styles.bio}>{specialist.experience}</Text>
           </View>
-        </View>
+        )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Certifications</Text>
-          {specialist.certifications.map((cert) => (
-            <View key={cert} style={styles.certificationItem}>
-              <Ionicons name="shield-checkmark" size={20} color="#2ecc71" />
-              <Text style={styles.certificationText}>{cert}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Availability</Text>
-          <View style={styles.availabilityContainer}>
-            {Object.entries(specialist.availability).map(([date, slots]) => (
-              <View key={date} style={styles.dateContainer}>
-                <Text style={styles.dateText}>{date}</Text>
-                <View style={styles.timeSlots}>
-                  {slots.map((time) => (
-                    <Text key={time} style={styles.timeSlot}>
-                      {time}
-                    </Text>
-                  ))}
-                </View>
-              </View>
-            ))}
+        {specialist?.introduction && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Introduction</Text>
+            <Text style={styles.bio}>{specialist.introduction}</Text>
           </View>
-        </View>
+        )}
 
         <TouchableOpacity
           style={styles.bookButton}
@@ -189,11 +184,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 4,
   },
-  reviews: {
-    fontSize: 14,
-    color: "gray",
-    marginLeft: 4,
-  },
   section: {
     padding: 16,
     borderBottomWidth: 1,
@@ -204,68 +194,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 12,
   },
-  specialtiesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  specialtyChip: {
-    backgroundColor: "#f1f1f1",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  specialtyText: {
+  bio: {
     fontSize: 14,
-    fontWeight: "500",
-  },
-  languagesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  languageChip: {
-    backgroundColor: "#f1f1f1",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  languageText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  certificationItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  certificationText: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginLeft: 8,
-  },
-  availabilityContainer: {
-    gap: 12,
-  },
-  dateContainer: {
-    marginBottom: 8,
-  },
-  dateText: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  timeSlots: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  timeSlot: {
-    backgroundColor: "#f1f1f1",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    fontSize: 14,
+    color: "gray",
   },
   bookButton: {
     margin: 16,
