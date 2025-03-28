@@ -491,3 +491,32 @@ export interface BookingHistoryResponse {
   totalRecords: number;
   totalPages: number;
 }
+
+// Thêm các interface cho Feedback
+export interface FeedbackReply {
+  feedbackReplyId: number;
+  staffName: string;
+  feedbackId: number;
+  reply: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Feedback {
+  feedbackId: number;
+  bookingId: number;
+  feedbackBy: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+  feedbackReplies: FeedbackReply[];
+}
+
+export interface FeedbackResponse {
+  items: Feedback[];
+  pageNumber: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages: number;
+}

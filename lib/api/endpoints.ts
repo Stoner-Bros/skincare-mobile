@@ -905,6 +905,21 @@ export const momoApi = {
   }
 };
 
+// Thêm vào object api
+export const feedbackApi = {
+  getFeedbacks: async (pageNumber = 1, pageSize = 4) => {
+    try {
+      const response = await apiClient.get('/api/feedbacks', {
+        params: { pageNumber, pageSize }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching feedbacks:', error);
+      throw error;
+    }
+  }
+};
+
 // API chung để sử dụng trong ứng dụng
 export const api = {
   accounts: accountApi,
@@ -920,4 +935,5 @@ export const api = {
   timeSlots: timeSlotsApi,
   customers: customerApi,
   momo: momoApi,
+  feedback: feedbackApi,
 };

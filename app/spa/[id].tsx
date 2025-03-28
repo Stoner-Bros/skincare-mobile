@@ -109,31 +109,7 @@ const SpaDetail = () => {
       <View style={styles.content}>
         <Text style={styles.description}>{spaData.description}</Text>
 
-        <Text style={styles.sectionTitle}>Dịch vụ của chúng tôi</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.servicesContainer}
-        >
-          {spaData.services.map((service) => (
-            <View key={service.id} style={styles.serviceCard}>
-              <Image
-                source={{ uri: service.image }}
-                style={styles.serviceImage}
-              />
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceName}>{service.name}</Text>
-                <Text style={styles.serviceDuration}>
-                  <Ionicons name="time-outline" size={14} color="#666" />{" "}
-                  {service.duration}
-                </Text>
-                <Text style={styles.servicePrice}>{service.price}đ</Text>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-
-        <Text style={styles.sectionTitle}>Đánh giá khách hàng</Text>
+        {/* <Text style={styles.sectionTitle}>Đánh giá khách hàng</Text>
         {spaData.reviews.map((review) => (
           <View key={review.id} style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
@@ -148,7 +124,7 @@ const SpaDetail = () => {
             </View>
             <Text style={styles.reviewComment}>{review.comment}</Text>
           </View>
-        ))}
+        ))} */}
 
         <TouchableOpacity
           style={styles.bookButton}

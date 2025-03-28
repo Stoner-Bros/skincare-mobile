@@ -41,7 +41,7 @@ export default function PopularTreatments() {
               : "https://via.placeholder.com/300",
           })
         );
-        // console.log("Formatted treatments:", formattedTreatments);
+        console.log("Formatted treatments:", formattedTreatments);
         setTreatments(formattedTreatments);
       } else {
         console.log("No treatments found in response");

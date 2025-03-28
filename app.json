@@ -61,6 +61,7 @@
       "eas": {
         "projectId": "be899138-4b4e-49ac-8b1b-c5b4bc4a7770"
       }
-    }
+    },
+    "assets": ["./assets/images"]
   }
 }

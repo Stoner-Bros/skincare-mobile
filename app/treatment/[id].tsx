@@ -7,12 +7,16 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { api } from "../../lib/api/endpoints";
 type TabType = "about" | "reviews" | "bio";
+
+const { width } = Dimensions.get("window");
 
 export default function TreatmentDetail() {
   const router = useRouter();
@@ -84,8 +88,8 @@ export default function TreatmentDetail() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={[styles.container, styles.loadingContainer]}>
-          <ActivityIndicator size="large" color="#2ecc71" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#A83F98" />
         </View>
       </SafeAreaView>
     );
@@ -94,8 +98,8 @@ export default function TreatmentDetail() {
   if (!treatment) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={[styles.container, styles.loadingContainer]}>
-          <Text>Treatment not found</Text>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>Treatment not found</Text>
         </View>
       </SafeAreaView>
     );
@@ -150,65 +154,173 @@ export default function TreatmentDetail() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Image
-          source={{ uri: treatment.image }}
-          style={styles.image}
-          onError={(e) =>
-            console.log("Image loading error:", e.nativeEvent.error)
-          }
-        />
-
-        <View style={styles.profileInfo}>
-          <Text style={styles.name}>{treatment.name}</Text>
-          <Text style={styles.duration}>
-            <Ionicons name="time-outline" size={16} color="#666" />{" "}
-            {treatment.duration} min
-          </Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#A83F98" />
         </View>
-
-        <View style={styles.tabs}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "about" && styles.activeTab]}
-            onPress={() => setActiveTab("about")}
+      ) : !treatment ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>Treatment not found</Text>
+        </View>
+      ) : (
+        <>
+          <LinearGradient
+            colors={["#A83F98", "#ffffff"]}
+            style={styles.headerGradient}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "about" && styles.activeTabText,
-              ]}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
             >
-              About
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          </LinearGradient>
 
-        {activeTab === "about" && renderAboutTab()}
-      </ScrollView>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={styles.scrollView}
+          >
+            <View style={styles.imageContainer}>
+              <Image
+                source={{ uri: treatment.image }}
+                style={styles.image}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={["transparent", "rgba(168, 63, 152, 0.8)"]}
+                style={styles.imageGradient}
+              />
+            </View>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.bookButton,
-            !treatment.isAvailable && styles.disabledButton,
-          ]}
-          onPress={() =>
-            treatment.isAvailable &&
-            router.push(`/(booking-flow)/new?treatmentId=${id}`)
-          }
-          disabled={!treatment.isAvailable}
-        >
-          <Text style={styles.bookButtonText}>
-            {treatment.isAvailable ? "Book Now" : "Not Available"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <View style={styles.contentContainer}>
+              <View style={styles.mainInfo}>
+                <Text style={styles.name}>{treatment.name}</Text>
+                <View style={styles.ratingContainer}>
+                  <View style={styles.stars}>
+                    {renderStars(treatment.rating)}
+                  </View>
+                  <View style={styles.availabilityBadge}>
+                    <Ionicons
+                      name={
+                        treatment.isAvailable
+                          ? "checkmark-circle"
+                          : "close-circle"
+                      }
+                      size={16}
+                      color={treatment.isAvailable ? "#2ecc71" : "#e74c3c"}
+                    />
+                    <Text
+                      style={[
+                        styles.availabilityText,
+                        {
+                          color: treatment.isAvailable ? "#2ecc71" : "#e74c3c",
+                        },
+                      ]}
+                    >
+                      {treatment.isAvailable ? "Available" : "Not Available"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoCard}>
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoItem}>
+                      <Ionicons name="time-outline" size={24} color="#A83F98" />
+                      <Text style={styles.infoLabel}>Duration</Text>
+                      <Text style={styles.infoValue}>
+                        {treatment.duration} min
+                      </Text>
+                    </View>
+                    <View style={styles.infoItem}>
+                      <Ionicons name="cash-outline" size={24} color="#A83F98" />
+                      <Text style={styles.infoLabel}>Price</Text>
+                      <Text style={styles.infoValue}>
+                        {new Intl.NumberFormat("vi-VN", {
+                          style: "currency",
+                          currency: "VND",
+                          minimumFractionDigits: 0,
+                        }).format(treatment.price)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.statsContainer}>
+                  <View style={styles.statItem}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={24}
+                      color="#A83F98"
+                    />
+                    <Text style={styles.statValue}>
+                      {treatment.totalBookings}
+                    </Text>
+                    <Text style={styles.statLabel}>Bookings</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Ionicons name="star-outline" size={24} color="#A83F98" />
+                    <Text style={styles.statValue}>
+                      {treatment.totalReviews}
+                    </Text>
+                    <Text style={styles.statLabel}>Reviews</Text>
+                  </View>
+                </View>
+
+                <View style={styles.descriptionContainer}>
+                  <Text style={styles.sectionTitle}>Description</Text>
+                  <Text style={styles.description}>
+                    {treatment.description}
+                  </Text>
+                </View>
+
+                {/* <View style={styles.serviceInfo}>
+                  <Text style={styles.sectionTitle}>Service Information</Text>
+                  <View style={styles.serviceCard}>
+                    <View style={styles.serviceRow}>
+                      <Ionicons
+                        name="information-circle-outline"
+                        size={20}
+                        color="#A83F98"
+                      />
+                      <Text style={styles.serviceText}>
+                        Service ID: {treatment.serviceId}
+                      </Text>
+                    </View>
+                  </View>
+                </View> */}
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[
+                styles.bookButton,
+                !treatment.isAvailable && styles.disabledButton,
+              ]}
+              onPress={() =>
+                treatment.isAvailable &&
+                router.push(`/(booking-flow)/new?treatmentId=${id}`)
+              }
+              disabled={!treatment.isAvailable}
+            >
+              <LinearGradient
+                colors={
+                  treatment.isAvailable
+                    ? ["#A83F98", "#7B2C8C"]
+                    : ["#ccc", "#999"]
+                }
+                style={styles.gradientButton}
+              >
+                <Text style={styles.bookButtonText}>
+                  {treatment.isAvailable ? "Book Now" : "Not Available"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -216,70 +328,227 @@ export default function TreatmentDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#fff",
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  headerGradient: {
+    height: 60,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
   },
-  headerActions: {
-    flexDirection: "row",
+  scrollView: {
+    flex: 1,
   },
-  headerButton: {
-    marginLeft: 16,
+  imageContainer: {
+    height: 300,
+    width: "100%",
+    position: "relative",
   },
   image: {
     width: "100%",
-    height: 250,
-    resizeMode: "cover",
+    height: "100%",
   },
-  profileInfo: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f1f1",
+  imageGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "50%",
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -24,
+    paddingTop: 24,
+  },
+  mainInfo: {
+    padding: 20,
   },
   name: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 12,
   },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
-  rating: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginLeft: 4,
-  },
-  lastBooked: {
-    fontSize: 14,
-    color: "#666",
-  },
-  tabs: {
+  stars: {
     flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f1f1",
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
+  availabilityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8f8f8",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  availabilityText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  infoCard: {
+    backgroundColor: "#f8f8f8",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
     alignItems: "center",
   },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#2ecc71",
+  infoItem: {
+    alignItems: "center",
+    flex: 1,
   },
-  tabText: {
+  infoLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 8,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  descriptionContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+  },
+  description: {
+    fontSize: 15,
+    color: "#666",
+    lineHeight: 24,
+    textAlign: "justify",
+  },
+  serviceInfo: {
+    marginBottom: 24,
+  },
+  serviceCard: {
+    backgroundColor: "#f8f8f8",
+    borderRadius: 16,
+    padding: 16,
+  },
+  serviceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  serviceText: {
+    fontSize: 15,
+    color: "#333",
+  },
+  footer: {
+    padding: 16,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#f1f1f1",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  bookButton: {
+    width: "100%",
+    height: 56,
+    borderRadius: 28,
+    overflow: "hidden",
+  },
+  gradientButton: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  bookButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    backgroundColor: "#f8f8f8",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statDivider: {
+    width: 1,
+    height: "80%",
+    backgroundColor: "#e0e0e0",
+    marginHorizontal: 20,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#333",
+    marginTop: 8,
+  },
+  statLabel: {
     fontSize: 14,
     color: "#666",
-  },
-  activeTabText: {
-    color: "#2ecc71",
-    fontWeight: "500",
+    marginTop: 4,
   },
   tabContent: {
     padding: 16,
@@ -292,9 +561,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
-  },
-  stars: {
-    flexDirection: "row",
   },
   verifiedBadge: {
     flexDirection: "row",
@@ -309,111 +575,18 @@ const styles = StyleSheet.create({
     color: "#2ecc71",
     marginLeft: 4,
   },
-  description: {
-    fontSize: 14,
-    color: "#333",
-    lineHeight: 20,
-  },
   statsSection: {
-    gap: 12,
+    marginBottom: 24,
   },
   statsTitle: {
-    fontSize: 12,
-    color: "#666",
-    textTransform: "uppercase",
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
   },
   statsValue: {
-    fontSize: 14,
-    color: "#333",
-    fontWeight: "500",
-  },
-  certificationItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    padding: 12,
-    borderRadius: 8,
-  },
-  certificationText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#333",
-  },
-  reviewsHeader: {
-    marginBottom: 16,
-  },
-  reviewsCount: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 4,
-  },
-  reviewsAverage: {
-    fontSize: 14,
-    color: "#666",
-  },
-  distributionContainer: {
-    gap: 12,
-  },
-  distributionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  distributionBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: "#f1f1f1",
-    borderRadius: 4,
-    marginHorizontal: 12,
-    overflow: "hidden",
-  },
-  distributionFill: {
-    height: "100%",
-    backgroundColor: "#2ecc71",
-    borderRadius: 4,
-  },
-  distributionCount: {
-    fontSize: 14,
     color: "#333",
-    width: 40,
-    textAlign: "right",
-  },
-  distributionPercentage: {
-    fontSize: 14,
-    color: "#666",
-    width: 50,
-    textAlign: "right",
-  },
-  bioText: {
-    fontSize: 14,
-    color: "#333",
-    lineHeight: 20,
-  },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f1f1",
-  },
-  bookButton: {
-    backgroundColor: "#2ecc71",
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  bookButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  loadingContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  disabledButton: {
-    backgroundColor: "#ccc",
-  },
-  duration: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 4,
   },
 });
