@@ -2,22 +2,28 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-parser";
+import { useRouter } from "expo-router";
 
 interface BookingCardProps {
   booking: BookingItem;
-  onViewDetail: (id: number) => void;
 }
 
-export function BookingCard({ booking, onViewDetail }: BookingCardProps) {
+export function BookingCard({ booking }: BookingCardProps) {
+  const router = useRouter();
+
   const formatTime = (time: string) => {
     return time.substring(0, 5); // Chuyển "15:00:00" thành "15:00"
   };
 
+  const handleViewDetail = () => {
+    router.push({
+      pathname: "/(booking-flow)/[id]",
+      params: { id: booking.bookingId },
+    });
+  };
+
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => onViewDetail(booking.bookingId)}
-    >
+    <TouchableOpacity style={styles.card} onPress={handleViewDetail}>
       <View style={styles.header}>
         <Text style={styles.serviceName}>
           {booking.treatment.belongToService.serviceName}
@@ -69,7 +75,7 @@ export function BookingCard({ booking, onViewDetail }: BookingCardProps) {
         <View style={styles.row}>
           <Ionicons name="wallet-outline" size={20} color="#666" />
           <Text style={styles.text}>
-            ${booking.totalPrice.toLocaleString()}
+            {booking.totalPrice.toLocaleString()} VND
           </Text>
         </View>
 

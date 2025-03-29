@@ -97,7 +97,7 @@ export default function SkinTestScreen() {
     "loading" | "success" | "error" | "waiting" | "pending" | null
   >(null);
   const [retryCount, setRetryCount] = useState(0);
-  const MAX_RETRIES = 12; // Số lần thử tối đa (1 phút với interval 5 giây)
+  const MAX_RETRIES = 30; // Số lần thử tối đa (1 phút với interval 5 giây)
 
   useEffect(() => {
     loadCustomerInfo();
@@ -297,7 +297,7 @@ export default function SkinTestScreen() {
               } else {
                 // Nếu chưa có kết quả, bắt đầu polling một cách im lặng
                 let retries = 0;
-                const maxRetries = 20;
+                const maxRetries = 30;
 
                 const checkInterval = setInterval(async () => {
                   if (retries >= maxRetries) {

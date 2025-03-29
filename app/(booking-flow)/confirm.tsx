@@ -617,17 +617,17 @@ export default function BookingConfirmation() {
                   ${bookingDetails.price.toFixed(2)}
                 </Text>
               </View>
-              <View style={styles.priceRow}>
+              {/* <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>Tax (10%)</Text>
                 <Text style={styles.priceValue}>
                   ${bookingDetails.tax.toFixed(2)}
                 </Text>
-              </View>
+              </View> */}
               <View style={styles.divider} />
               <View style={styles.priceRow}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalValue}>
-                  ${(bookingDetails.price + bookingDetails.tax).toFixed(2)}
+                  ${bookingDetails.price.toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -653,7 +653,7 @@ export default function BookingConfirmation() {
             ) : (
               <Text style={styles.confirmButtonText}>
                 Proceed to Checkout ($
-                {(bookingDetails?.price + bookingDetails?.tax).toFixed(2)})
+                {bookingDetails?.price.toFixed(2)})
               </Text>
             )}
           </TouchableOpacity>

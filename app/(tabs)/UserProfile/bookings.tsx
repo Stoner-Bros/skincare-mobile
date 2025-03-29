@@ -104,7 +104,12 @@ export default function BookingsScreen() {
             <TouchableOpacity
               key={booking.bookingId}
               style={styles.bookingCard}
-              onPress={() => router.push(`/booking/${booking.bookingId}`)}
+              onPress={() =>
+                router.push({
+                  pathname: "/(booking-flow)/[id]",
+                  params: { id: booking.bookingId },
+                })
+              }
             >
               <View style={styles.bookingHeader}>
                 <View style={styles.treatmentInfo}>
